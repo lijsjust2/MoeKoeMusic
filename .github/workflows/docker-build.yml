@@ -1,0 +1,38 @@
+name: Build and Push Multi-Arch Docker Image
+
+# 触发条件：推送到 main 分支或手动触发
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # 使用 GitHub 提供的 Ubuntu 虚拟机
+
+    steps:
+      # 步骤 1：拉取代码到工作流环境
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 步骤 2：设置 Docker Buildx 环境（支持多架构）
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 步骤 3：登录 Docker Hub（使用仓库 Secrets）
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 步骤 4：构建并推送多架构镜像
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .  # 构建上下文（项目根目录，Dockerfile 所在位置）
+          platforms: linux/amd64,linux/arm64  # 目标架构（可根据需要添加其他架构）
+          push: true  # 推送镜像到仓库
+          tags: |  # 镜像标签（支持多个标签，如 latest 和版本号）
+            ${{ secrets.DOCKER_USERNAME }}/moekoe-music:latest
+            ${{ secrets.DOCKER_USERNAME }}/moekoe-music:${{ github.sha }}  # 用 commit SHA 作为标签
