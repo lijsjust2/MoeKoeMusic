@@ -35,4 +35,4 @@ jobs:
           push: true  # 推送镜像到仓库
           tags: |  # 镜像标签（支持多个标签，如 latest 和版本号）
             ${{ secrets.DOCKER_USERNAME }}/moekoe-music:latest
-            ${{ secrets.DOCKER_USERNAME }}/moekoe-music:${{ github.sha }}  # 用 commit SHA 作为标签
+            ${{ secrets.DOCKER_USERNAME }}/moekoe-music:${{ github.sha }}
