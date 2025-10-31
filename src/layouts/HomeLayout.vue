@@ -58,78 +58,131 @@ onUnmounted(() => {
 
 <style>
 :root {
-    /* 粉红色主色调 - 用于主要按钮、强调元素 */
-    --primary-color: #FF69B4;
-    /* 浅粉红色辅助色 - 用于次要按钮、提示信息 */
-    --secondary-color: #FFB6C1;
-    /* 文本颜色 - 用于正文内容 */
-    --text-color: #333;
-    /* 浅粉色背景 - 用于页面主背景 */
-    --background-color: #FFF0F5;
-    /* 次要背景色 - 用于卡片、侧边栏背景 */
-    --background-color-secondary: #FFE6F0;
-    /* 高亮色 - 用于交互元素如按钮、链接 */
-    --color-primary: #ea33e4;
-    /* 高亮色的浅色版本 - 用于选中状态背景 */
-    --color-primary-light: rgba(255, 105, 180, 0.1);
-    /* 边框颜色 - 用于分隔线、边框 */
-    --border-color: #FFD9E6;
-    /* 悬停颜色 - 用于元素悬停状态 */
-    --hover-color: #FFE9F2;
-    /* 半透明背景 - 用于覆盖层、提示框 */
-    --color-secondary-bg-for-transparent: rgba(209, 209, 214, 0.28);
-    /* 阴影颜色 - 用于卡片、弹窗阴影 */
-    --color-box-shadow: rgba(255, 105, 180, 0.2);
+  --primary-color: #3498db;
+  --primary-light: #5dade2;
+  --primary-dark: #2874a6;
+  --text-color: #333;
+  --text-light: #666;
+  --text-lighter: #999;
+  --background-color: #f5f5f5;
+  --secondary-color: #fff;
+  --border-color: #e0e0e0;
+  --hover-color: #f0f0f0;
+  --color-secondary-bg-for-transparent: rgba(209, 209, 214, 0.28);
+  --color-box-shadow: rgba(0, 0, 0, 0.1);
+  --background-color-secondary: #fff;
+}
+
+/* 保留滚动条但美化 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #999;
 }
 
 * {
-    user-select: none;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
 }
 
-body,
-html {
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    background-color: #FFF;
-    color: var(--text-color);
-    height: 100%;
-}
-
-body {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-::-webkit-scrollbar {
-    width: 0;
-    height: 0;
+html, body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  height: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 main {
-    min-height: calc(100vh - 80px - 188px);
-    max-width: 1200px;
-    margin: 0 auto;
-    margin-bottom: 150px;
-    padding-top: 80px;
-    padding-bottom: 150px;
+  min-height: calc(100vh - 120px);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  padding-bottom: 80px;
 }
 
 a {
-    text-decoration: none;
-    color: inherit;
-    display: block;
+  text-decoration: none;
+  color: inherit;
+  display: block;
 }
 
 .network-status {
-    position: fixed;
-    top: 80px;
-    left: 0;
-    right: 0;
-    background-color: #ff4757;
-    color: white;
-    text-align: center;
-    padding: 8px;
-    z-index: 1000;
+  position: fixed;
+  top: 80px;
+  left: 0;
+  right: 0;
+  background-color: #ff4757;
+  color: white;
+  text-align: center;
+  padding: 8px;
+  z-index: 1000;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  main {
+    padding: 10px;
+    padding-bottom: 80px;
+  }
+}
+
+/* 全局卡片样式 */
+.card {
+  background: var(--secondary-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 按钮通用样式 */
+.btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn:hover {
+  background: var(--primary-dark);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-outline:hover {
+  background: var(--primary-color);
+  color: white;
 }
 </style>
