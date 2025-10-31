@@ -201,19 +201,61 @@ const isVersionLower = (current, latest) => {
 };
 </script>
 <style scoped>
+/* 基础样式重置和变量 */
+:root {
+    --header-bg: var(--bg-color, #fff);
+    --text-color: var(--color-text, #333);
+    --hover-bg: var(--color-secondary-bg-for-transparent, #f5f5f5);
+    --primary-color: var(--color-primary, #007bff);
+    --border-radius: 8px;
+    --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* 头部容器 */
+header {
+    background-color: var(--header-bg);
+    padding: 12px 0;
+    box-shadow: var(--box-shadow);
+    position: fixed;
+    width: 100%;
+    top: 0;
+    z-index: 9;
+    backdrop-filter: blur(10px);
+}
+
+/* 导航容器 */
 .navigation {
     display: flex;
-    gap: 10px;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px;
+    gap: 16px;
+}
+
+/* 导航箭头按钮 */
+.navigation > div:first-child {
+    display: flex;
+    gap: 8px;
 }
 
 .nav-arrow {
     background: none;
     border: none;
     cursor: pointer;
-    padding: 10px;
+    padding: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    width: 36px;
+    height: 36px;
+}
+
+.nav-arrow:hover:not(:disabled) {
+    background-color: var(--hover-bg);
 }
 
 .nav-arrow:disabled i {
@@ -222,162 +264,105 @@ const isVersionLower = (current, latest) => {
 }
 
 .nav-arrow i {
-    font-size: 24px;
-    color: #333;
+    font-size: 18px;
+    color: var(--text-color);
 }
 
-.nav-arrow:hover {
-    background-color: #f0f0f0;
-}
-
-
-button {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 8px;
-    background: transparent;
-    margin: 4px;
-    border-radius: 25%;
-    transition: .2s
-}
-
-button .svg-icon {
-    color: var(--color-text);
-    height: 16px;
-    width: 16px
-}
-
-button:first-child {
-    margin-left: 0
-}
-
-button:hover {
-    background: var(--color-secondary-bg-for-transparent)
-}
-
-button:active {
-    transform: scale(.92)
-}
-
-header {
-    background-color: #fff;
-    padding: 15px 0;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    position: fixed;
-    width: 100%;
-    top: 0px;
-    z-index: 9;
-}
-
-.nav-arrow,
-.nav-links a,
-.search-bar input,
-.profile,
-.profile img {
-    -webkit-app-region: no-drag;
-}
-
-.navigation {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
-}
-
+/* 导航链接 */
 .nav-links {
     display: flex;
-    gap: 30px;
+    gap: 24px;
     justify-content: center;
     flex-grow: 1;
 }
 
 .nav-links a {
     text-decoration: none;
-    color: var(--primary-color);
-    -webkit-app-region: no-drag;
-    font-size: 18px;
-    font-weight: 700;
-    border-radius: 6px;
-    padding: 6px 10px;
-    transition: .2s;
+    color: var(--text-color);
+    font-size: 16px;
+    font-weight: 500;
+    padding: 6px 0;
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
     -webkit-user-drag: none;
-    margin-right: 12px;
-    margin-left: 12px
 }
 
-.nav-links a:hover {
-    background: var(--color-secondary-bg-for-transparent)
-}
-
-.nav-links a:active {
-    transform: scale(.92);
-    transition: .2s
-}
-
+.nav-links a:hover,
 .nav-links a.active {
-    color: var(--color-primary)
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
 }
 
+/* 搜索和个人资料 */
 .search-profile {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 16px;
 }
 
+/* 搜索栏 */
 .search-bar input {
-    padding: 8px 15px;
+    padding: 8px 16px;
     border-radius: 20px;
-    border: 1px solid var(--secondary-color);
+    border: 1px solid #ddd;
     font-size: 14px;
     width: 200px;
-    transition: width 0.3s ease;
+    transition: all 0.3s ease;
+    background-color: var(--header-bg);
+    color: var(--text-color);
 }
 
 .search-bar input:focus {
-    width: 250px;
+    width: 240px;
     outline: none;
     border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
 }
 
+/* 个人资料 */
 .profile {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background-color: var(--secondary-color);
+    background-color: var(--hover-bg);
     cursor: pointer;
     position: relative;
+    transition: all 0.2s ease;
+}
+
+.profile:hover {
+    transform: scale(1.05);
 }
 
 .profile img {
-    width: 41px;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
     border-radius: 50%;
 }
 
+/* 个人资料菜单 */
 .profile-menu {
     position: absolute;
-    top: 50px;
+    top: 48px;
     right: 0;
-    background-color: #fff;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    padding: 10px;
-    width: 150px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    animation: fadeInOut 0.3s ease-in-out;
+    background-color: var(--header-bg);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: var(--border-radius);
+    padding: 8px 0;
+    width: 160px;
+    animation: fadeInUp 0.2s ease;
+    z-index: 10;
 }
 
-@keyframes fadeInOut {
-    0% {
+@keyframes fadeInUp {
+    from {
         opacity: 0;
+        transform: translateY(10px);
     }
-
-    100% {
+    to {
         opacity: 1;
+        transform: translateY(0);
     }
 }
 
@@ -390,18 +375,19 @@ header {
 .profile-menu li a {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
     cursor: pointer;
-    padding: 7px 5px;
-    border-radius: 5px;
-    color: #000;
+    padding: 10px 16px;
+    color: var(--text-color);
     text-decoration: none;
+    transition: background-color 0.2s ease;
 }
 
 .profile-menu li a:hover {
-    background-color: var(--secondary-color);
+    background-color: var(--hover-bg);
 }
 
+/* 模态框样式 */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -413,69 +399,187 @@ header {
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    backdrop-filter: blur(4px);
 }
 
 .modal-content {
-    position: relative;
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
+    background-color: var(--header-bg);
+    padding: 24px;
+    border-radius: var(--border-radius);
     max-width: 700px;
     width: 90%;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    text-align: left;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
     animation: fadeIn 0.3s ease;
+    position: relative;
 }
 
 .modal-content h2 {
     margin-top: 0;
     color: var(--primary-color);
+    font-size: 20px;
 }
 
 .modal-content p {
-    margin: 10px 0;
+    margin: 12px 0;
     line-height: 1.6;
+    color: var(--text-color);
+    font-size: 14px;
 }
 
 .modal-content button {
-    margin-top: 15px;
-    padding: 8px 12px;
+    margin-top: 20px;
+    padding: 10px 20px;
     background-color: var(--primary-color);
     color: #fff;
     border: none;
-    border-radius: 5px;
+    border-radius: var(--border-radius);
     cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
 }
 
+.modal-content button:hover {
+    background-color: #0069d9;
+    transform: translateY(-1px);
+}
 
+/* 通用动画 */
 @keyframes fadeIn {
     from {
         opacity: 0;
         transform: scale(0.95);
     }
-
     to {
         opacity: 1;
         transform: scale(1);
     }
 }
 
+/* 新版本徽章 */
 .new-badge {
     position: absolute;
-    top: 1px;
-    left: 67px;
-    background-color: red;
+    top: -2px;
+    left: 65px;
+    background-color: #ff4757;
     color: white;
-    padding: 0px 4px;
-    border-radius: 5px;
-    font-size: 14px;
+    padding: 0 6px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
 }
 
+/* 版本号 */
 .version-number {
     position: absolute;
-    bottom: 10px;
-    right: 10px;
+    bottom: 12px;
+    right: 16px;
     font-size: 12px;
-    color: #666;
+    color: #999;
 }
-</style>
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+    .nav-links {
+        gap: 20px;
+    }
+    
+    .search-bar input {
+        width: 180px;
+    }
+    
+    .search-bar input:focus {
+        width: 220px;
+    }
+}
+
+@media (max-width: 768px) {
+    header {
+        padding: 8px 0;
+    }
+    
+    .navigation {
+        padding: 0 12px;
+        gap: 12px;
+    }
+    
+    .nav-arrow {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .nav-arrow i {
+        font-size: 16px;
+    }
+    
+    .nav-links {
+        display: none;
+    }
+    
+    .search-profile {
+        gap: 12px;
+    }
+    
+    .search-bar input {
+        width: 140px;
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+    
+    .search-bar input:focus {
+        width: 180px;
+    }
+    
+    .profile {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .profile-menu {
+        width: 140px;
+        right: -10px;
+    }
+    
+    .profile-menu li a {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    .modal-content {
+        margin: 20px;
+        padding: 20px;
+        max-height: 85vh;
+    }
+    
+    .modal-content h2 {
+        font-size: 18px;
+    }
+    
+    .modal-content p {
+        font-size: 13px;
+        margin: 10px 0;
+    }
+    
+    .version-number {
+        position: static;
+        margin-top: 16px;
+        text-align: center;
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 480px) {
+    .search-bar {
+        display: none;
+    }
+    
+    .navigation > div:first-child {
+        order: 2;
+    }
+    
+    .search-profile {
+        order: 1;
+        margin-left: auto;
+    }
+}</style>
