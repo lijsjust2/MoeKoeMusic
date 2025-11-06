@@ -59,8 +59,8 @@ jobs:
             const assetPath = 'release-assets/${{ env.IMAGE_FILENAME }}';
             const assetName = '${{ env.IMAGE_FILENAME }}';
             const currentDate = '${{ env.CURRENT_DATE }}';
-            const tagName = 'img-${currentDate}';
-            const releaseName = 'Docker Image ${currentDate}';
+            const tagName = `img-${currentDate}`;
+            const releaseName = `Docker Image ${currentDate}`;
             const commitSha = '${{ github.sha }}';
             
             // Check if tag already exists
