@@ -78,9 +78,12 @@ router.beforeEach((to, from, next) => {
                 path: '/login',
                 query: { redirect: to.fullPath } 
             });
-        } 
-    } 
-    next();
+        } else {
+            next(); // 已认证，允许访问
+        }
+    } else {
+        next(); // 不需要认证的页面，直接访问
+    }
 });
 
 export default router;

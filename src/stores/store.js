@@ -20,7 +20,7 @@ export const MoeAuthStore = defineStore('MoeData', {
         }
     },
     getters: {
-        isAuthenticated: (state) => !!state.UserInfo && !!state.UserInfo, // 判断是否已认证
+        isAuthenticated: (state) => !!state.UserInfo, // 判断是否已认证
     },
     persist: {
         enabled: true, 
