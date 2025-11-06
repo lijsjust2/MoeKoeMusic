@@ -222,5 +222,13 @@
   "xia-zai-ge-qu": "下载歌曲",
   "qu-xiao-xia-zai": "取消下载",
   "huo-qu-ge-qu-URL-shi-bai": "获取歌曲URL失败",
-  "xia-zai-yi-chu-fa": "下载已开始"
+  "xia-zai-yi-chu-fa": "下载已开始",
+  "xuan-ze-yin-zhi": "选择音质",
+  "yin-zhi-128": "普通音质128K",
+  "yin-zhi-128k": "普通音质128K",
+  "yin-zhi-320": "高音质320K",
+  "yin-zhi-320k": "高音质320K",
+  "yin-zhi-flac": "无损音质 (FLAC)",
+  "yin-zhi-piano": "钢琴版",
+  "yin-zhi-acappella": "伴奏版"
 }

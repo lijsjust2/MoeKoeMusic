@@ -9,7 +9,7 @@ export default function useSongQueue(t, musicQueueStore) {
     const timeoutId = ref(null);
 
     // 添加歌曲到队列并播放
-    const addSongToQueue = async (hash, name, img, author, isReset = true) => {
+    const addSongToQueue = async (hash, name, img, author, isReset = true, quality = null) => {
         const currentSongHash = currentSong.value.hash;
 
         if (typeof window !== 'undefined' && typeof window.electron !== 'undefined') {
@@ -33,8 +33,14 @@ export default function useSongQueue(t, musicQueueStore) {
             // 根据用户设置确定请求参数
             const MoeAuth = typeof MoeAuthStore === 'function' ? MoeAuthStore() : { isAuthenticated: false };
             if (!MoeAuth.isAuthenticated) data.free_part = 1;
-            if (MoeAuth.isAuthenticated && settings?.quality === 'lossless' && settings?.qualityCompatibility === 'off') data.quality = 'flac';
-            if (MoeAuth.isAuthenticated && settings?.quality === 'hires' && settings?.qualityCompatibility === 'off') data.quality = 'high';
+            
+            // 优先使用传入的quality参数，如果没有则使用设置中的音质
+            if (quality) {
+                data.quality = quality;
+            } else {
+                if (MoeAuth.isAuthenticated && settings?.quality === 'lossless' && settings?.qualityCompatibility === 'off') data.quality = 'flac';
+                if (MoeAuth.isAuthenticated && settings?.quality === 'hires' && settings?.qualityCompatibility === 'off') data.quality = 'high';
+            }
 
             const response = await get('/song/url', data);
             if (response.status !== 1) {
@@ -73,7 +79,8 @@ export default function useSongQueue(t, musicQueueStore) {
                 img: img.replace('http://', 'https://'),
                 author: author,
                 timeLength: response.timeLength,
-                url: response.url[0].replace('http://', 'https://')
+                url: response.url[0].replace('http://', 'https://'),
+                quality: data.quality || '128'
             };
 
             // 根据是否需要重置播放位置
@@ -109,7 +116,7 @@ export default function useSongQueue(t, musicQueueStore) {
     };
 
     // 添加云盘歌曲到播放列表
-    const addCloudMusicToQueue = async (hash, name, author, timeLength, cover, isReset = true) => {
+    const addCloudMusicToQueue = async (hash, name, author, timeLength, cover, isReset = true, quality = null) => {
         const currentSongHash = currentSong.value.hash;
         if (typeof window !== 'undefined' && typeof window.electron !== 'undefined') {
             window.electron.ipcRenderer.send('set-tray-title', name + ' - ' + author);
@@ -124,7 +131,12 @@ export default function useSongQueue(t, musicQueueStore) {
 
             console.log('[SongQueue] 获取云盘歌曲:', hash, name);
 
-            const response = await get('/user/cloud/url', { hash });
+            const requestData = { hash };
+            // 如果指定了音质，则添加到请求参数
+            if (quality) {
+                requestData.quality = quality;
+            }
+            const response = await get('/user/cloud/url', requestData);
             if (response.status !== 1) {
                 console.error('[SongQueue] 获取云盘音乐URL失败:', response);
                 currentSong.value.author = currentSong.value.name = t('huo-qu-yin-le-shi-bai');
@@ -154,7 +166,8 @@ export default function useSongQueue(t, musicQueueStore) {
                 img: cover,
                 timeLength: timeLength || 0,
                 url: response.data.url,
-                isCloud: true
+                isCloud: true,
+                quality: quality || '128'
             };
 
             // 根据是否需要重置播放位置
@@ -424,4 +437,4 @@ export default function useSongQueue(t, musicQueueStore) {
         addCloudPlaylistToQueue,
         privilegeSong
     };
-} 
+}

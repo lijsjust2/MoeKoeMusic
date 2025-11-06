@@ -52,7 +52,7 @@
                         class="fas fa-add"></i></button>
                 <button class="extra-btn" title="分享歌曲" @click="share('share?hash=' + currentSong.hash)"><i
                         class="fas fa-share"></i></button>
-                <button class="extra-btn" title="下载歌曲" @click="downloadSong()"><i
+                <button class="extra-btn" title="下载歌曲" @click="openQualityModal()"><i
                         class="fas fa-download"></i></button>
                 <button class="extra-btn" @click="togglePlaybackMode">
                     <i v-if="currentPlaybackModeIndex != '2'" :class="currentPlaybackMode.icon"
@@ -78,6 +78,15 @@
     <!-- 播放队列 -->
     <QueueList :current-song="currentSong" @add-song-to-queue="onQueueSongAdd"
         @add-cloud-music-to-queue="onQueueCloudSongAdd" @add-local-music-to-queue="onQueueLocalSongAdd" ref="queueList" />
+    
+    <!-- 音质选择模态框 -->
+    <QualitySelectModal
+        :is-open="showQualityModal"
+        :song="currentSong"
+        @close="showQualityModal = false"
+        @quality-selected="handleQualitySelected"
+        ref="qualitySelectModal"
+    />
 
     <!-- 全屏歌词界面 -->
     <transition name="slide-up">
@@ -170,6 +179,7 @@ import { useMusicQueueStore } from '../stores/musicQueue';
 import { useI18n } from 'vue-i18n';
 import PlaylistSelectModal from './PlaylistSelectModal.vue';
 import QueueList from './QueueList.vue';
+import QualitySelectModal from './QualitySelectModal.vue';
 import { useRouter } from 'vue-router';
 import { getCover, share } from '../utils/utils';
 
@@ -187,6 +197,8 @@ import {
 // 基础设置
 const queueList = ref(null);
 const playlistSelect = ref(null);
+const qualitySelectModal = ref(null);
+const showQualityModal = ref(false);
 const { t } = useI18n();
 const router = useRouter();
 const musicQueueStore = useMusicQueueStore();
@@ -203,59 +215,35 @@ const lyricsFlag = ref(false);
 // 辅助函数
 const { isElectron, throttle, getVip, desktopLyrics } = useHelpers(t);
 
-// 下载歌曲函数
-const downloadSong = async () => {
+// 打开音质选择模态框
+const openQualityModal = () => {
     if (!currentSong.value || !currentSong.value.hash) {
         console.log('[PlayerControl] 没有当前歌曲可下载');
         window.$modal.alert(t('mei-you-ke-xia-zai-de-ge-qu'));
         return;
     }
+    
+    if (currentSong.value.isLocal) {
+        // 本地音乐不需要下载
+        window.$modal.alert(t('ben-di-yin-le-wu-fa-xia-zai'));
+        return;
+    }
+    
+    showQualityModal.value = true;
+};
+
+// 下载歌曲函数（根据选择的音质）
+const downloadSong = async (qualityInfo) => {
+    if (!currentSong.value || !qualityInfo.url) {
+        console.error('[PlayerControl] 缺少下载必要信息');
+        return;
+    }
 
     try {
-        console.log('[PlayerControl] 开始下载歌曲:', currentSong.value.name);
-        
-        // 检查是否已有URL，如果没有则尝试获取
-        let songUrl = currentSong.value.url;
-        if (!songUrl || songUrl.startsWith('blob:')) {
-            console.log('[PlayerControl] 尝试获取歌曲URL');
-            
-            let result;
-            if (currentSong.value.isCloud) {
-                result = await addCloudMusicToQueue(
-                    currentSong.value.hash,
-                    currentSong.value.name,
-                    currentSong.value.author,
-                    currentSong.value.timeLength,
-                    currentSong.value.img,
-                    false
-                );
-            } else if (currentSong.value.isLocal) {
-                // 本地音乐不需要下载
-                window.$modal.alert(t('ben-di-yin-le-wu-fa-xia-zai'));
-                return;
-            } else {
-                result = await addSongToQueue(
-                    currentSong.value.hash,
-                    currentSong.value.name,
-                    currentSong.value.img,
-                    currentSong.value.author,
-                    false
-                );
-            }
-            
-            if (result && result.song && result.song.url) {
-                songUrl = result.song.url;
-            } else {
-                console.error('[PlayerControl] 无法获取歌曲URL');
-                window.$modal.alert(t('huo-qu-ge-qu-URL-shi-bai'));
-                return;
-            }
-        }
-        
-        console.log('[PlayerControl] 获取到歌曲URL:', songUrl);
+        console.log(`[PlayerControl] 开始下载歌曲 (${qualityInfo.label}):`, currentSong.value.name);
         
         // 使用fetch API获取文件blob，确保强制下载而不是播放
-        const response = await fetch(songUrl);
+        const response = await fetch(qualityInfo.url);
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -270,8 +258,8 @@ const downloadSong = async () => {
         const link = document.createElement('a');
         link.href = blobUrl;
         
-        // 设置文件名，避免特殊字符
-        let fileName = `${currentSong.value.name} - ${currentSong.value.author}.mp3`;
+        // 设置文件名，包含音质信息，避免特殊字符
+        let fileName = `${currentSong.value.name} - ${currentSong.value.author} (${qualityInfo.label}).${getExtensionByQuality(qualityInfo.quality)}`;
         fileName = fileName.replace(/[<>"/\|?*:]/g, '_'); // 替换Windows文件名中的非法字符
         
         link.download = fileName;
@@ -296,6 +284,17 @@ const downloadSong = async () => {
         console.error('[PlayerControl] 下载歌曲失败:', error);
         window.$modal.alert(t('xia-zai-shi-bai'));
     }
+};
+
+// 根据音质获取文件扩展名
+const getExtensionByQuality = (quality) => {
+    if (quality === 'flac') return 'flac';
+    return 'mp3'; // 其他音质默认为mp3
+};
+
+// 处理音质选择事件
+const handleQualitySelected = (qualityInfo) => {
+    downloadSong(qualityInfo);
 };
 
 // Easter Egg 相关
