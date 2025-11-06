@@ -1,28 +1,28 @@
 <br />
 <p align="center">
-    <img src="https://github.com/iAJue/MoeKoeMusic/raw/main/images/logo.png" alt="Logo" width="156" height="156">
+    <img src="https://github.com/lijsjust2/MoeKoeMusic/raw/main/images/logo.png" alt="Logo" width="156" height="156">
   <h2 align="center" style="font-weight: 600">MoeKoe Music</h2>
 
   <p align="center">
     一款开源简洁高颜值的酷狗第三方客户端
     <br />
-    <a href="https://github.com/iAJue/MoeKoeMusic/" target="blank"><strong>🌎 GitHub仓库</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="https://github.com/iAJue/MoeKoeMusic/releases" target="blank"><strong>📦️ 下载安装包</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="https://github.com/lijsjust2/MoeKoeMusic/" target="blank"><strong>🌎 GitHub仓库</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="https://github.com/lijsjust2/MoeKoeMusic/releases" target="blank"><strong>📦️ 下载安装包</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="https://MoeJue.cn" target="blank"><strong>💬 访问博客</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="https://Music.MoeKoe.cn" target="blank"><strong>🏠 项目主页</strong></a>
   </p>
   <p align="center">
-    <a href="https://github.com/iAJue/MoeKoeMusic/README.md" target="blank"><strong>🇨🇳 简体中文</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="https://github.com/iAJue/MoeKoeMusic/blob/main/docs/README_tw.md" target="blank"><strong>🇨🇳 繁体中文</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="https://github.com/iAJue/MoeKoeMusic/blob/main/docs/README_ja.md" target="blank"><strong>🇯🇵 日本語</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="https://github.com/iAJue/MoeKoeMusic/blob/main/docs/README_en.md" target="blank"><strong>🇺🇸 English</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="https://github.com/iAJue/MoeKoeMusic/blob/main/docs/README_ko.md" target="blank"><strong>🇰🇷 한국어</strong></a>
+    <a href="https://github.com/lijsjust2/MoeKoeMusic/README.md" target="blank"><strong>🇨🇳 简体中文</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="https://github.com/lijsjust2/MoeKoeMusic/blob/main/docs/README_tw.md" target="blank"><strong>🇨🇳 繁体中文</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="https://github.com/lijsjust2/MoeKoeMusic/blob/main/docs/README_ja.md" target="blank"><strong>🇯🇵 日本語</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="https://github.com/lijsjust2/MoeKoeMusic/blob/main/docs/README_en.md" target="blank"><strong>🇺🇸 English</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="https://github.com/lijsjust2/MoeKoeMusic/blob/main/docs/README_ko.md" target="blank"><strong>🇰🇷 한국어</strong></a>
     <br />
     <br />
   </p>
 </p>
 
-![images](https://github.com/iAJue/MoeKoeMusic/raw/main/images/1.png)
+![images](https://github.com/lijsjust2/MoeKoeMusic/raw/main/images/1.png)
 
 ## ❤️ 前言
 
@@ -60,7 +60,7 @@
 - [x] ⚙️ 系统架构优化
 - [x] 🎶 歌曲、歌单/收藏、取消
 
-更新日志请查看 [Commits](https://github.com/iAJue/MoeKoeMusic/commits/main/)
+更新日志请查看 [Commits](https://github.com/lijsjust2/MoeKoeMusic/commits/main/)
 
 ## 📦️ 安装
 
@@ -80,11 +80,13 @@
     docker compose up -d &
     ```
 
-    2. ~~方式二：使用docker-compose一键安装 （镜像暂未上传官方）~~
+    2. 方式二：使用GitHub Actions自动构建的Docker镜像
     
     ```
-    docker run -d --name MoeKoeMusic -p 8080:8080 iajue/moekoe-music:latest
+    docker run -d --name MoeKoeMusic -p 8080:8080 lijsjust2/moekoemusic:latest
     ```
+    
+    > 注：镜像由GitHub Actions自动构建，每次推送代码到main分支或创建tag时会自动更新
 
     3. 方式三：宝塔容器编排
 
@@ -111,7 +113,7 @@
     复制内容上面的内容，粘贴到宝塔面板的容器编排里面，编排名称为MoeKoeMusic，点击部署即可。
 
 ### 3. 一键部署
-[![使用 EdgeOne Pages 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://edgeone.ai/pages/new?template=https://github.com/iAJue/moekoemusic&install-command=npm%20install&output-directory=dist&root-directory=.%2F&build-command=npm%20run%20build&env=VITE_APP_API_URL)
+[![使用 EdgeOne Pages 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://edgeone.ai/pages/new?template=https://github.com/lijsjust2/moekoemusic&install-command=npm%20install&output-directory=dist&root-directory=.%2F&build-command=npm%20run%20build&env=VITE_APP_API_URL)
 
 需在环境变量(VITE_APP_API_URL)中填写自己的API地址
 
@@ -120,7 +122,7 @@
 1. 克隆本仓库
 
 ```sh
-git clone https://github.com/iAJue/MoeKoeMusic.git
+git clone https://github.com/lijsjust2/MoeKoeMusic.git
 ```
 
 2. 进入目录并安装依赖
@@ -252,7 +254,7 @@ npm run build
 
 如果您觉得这个项目对您有帮助，欢迎给我们一个 Star！您的支持是我们持续改进的动力。
 
-[![GitHub stars](https://img.shields.io/github/stars/iAJue/MoeKoeMusic.svg?style=social&label=Star)](https://github.com/iAJue/MoeKoeMusic)
+[![GitHub stars](https://img.shields.io/github/stars/lijsjust2/MoeKoeMusic.svg?style=social&label=Star)](https://github.com/lijsjust2/MoeKoeMusic)
 
 ## ✅ 反馈
 
@@ -273,7 +275,7 @@ npm run build
 
 本项目仅供个人学习研究使用，禁止用于商业及非法用途。
 
-基于 [GNU General Public License v2.0 (GPL-2.0)](https://github.com/iAJue/MoeKoeMusic/blob/main/LICENSE) 许可进行开源。
+基于 [GNU General Public License v2.0 (GPL-2.0)](https://github.com/lijsjust2/MoeKoeMusic/blob/main/LICENSE) 许可进行开源。
 
 ## 👍 灵感来源
 
@@ -287,15 +289,15 @@ API 源代码来自 [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicA
 
 ## 🖼️ 截图
 
-![image](https://github.com/iAJue/MoeKoeMusic/raw/main/images/2.png)
-![image](https://github.com/iAJue/MoeKoeMusic/raw/main/images/3.png)
-![image](https://github.com/iAJue/MoeKoeMusic/raw/main/images/4.png)
-![image](https://github.com/iAJue/MoeKoeMusic/raw/main/images/5.png)
-![image](https://github.com/iAJue/MoeKoeMusic/raw/main/images/6.png)
-![image](https://github.com/iAJue/MoeKoeMusic/raw/main/images/7.png)
-![image](https://github.com/iAJue/MoeKoeMusic/raw/main/images/8.png)
+![image](https://github.com/lijsjust2/MoeKoeMusic/raw/main/images/2.png)
+![image](https://github.com/lijsjust2/MoeKoeMusic/raw/main/images/3.png)
+![image](https://github.com/lijsjust2/MoeKoeMusic/raw/main/images/4.png)
+![image](https://github.com/lijsjust2/MoeKoeMusic/raw/main/images/5.png)
+![image](https://github.com/lijsjust2/MoeKoeMusic/raw/main/images/6.png)
+![image](https://github.com/lijsjust2/MoeKoeMusic/raw/main/images/7.png)
+![image](https://github.com/lijsjust2/MoeKoeMusic/raw/main/images/8.png)
 
 
 ## 🗓️ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=iAJue/MoeKoeMusic&type=Date)](https://www.star-history.com/#iAJue/MoeKoeMusic&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=lijsjust2/MoeKoeMusic&type=Date)](https://www.star-history.com/#lijsjust2/MoeKoeMusic&Date)

@@ -1,7 +1,7 @@
 {
   "name": "moekoemusic",
   "version": "1.5.2",
-  "homepage": "https://github.com/iAJue/MoeKoeMusic",
+  "homepage": "https://github.com/lijsjust2/MoeKoeMusic",
   "main": "electron/main.js",
   "scripts": {
     "install-all": "npm install && cd api && npm install",
@@ -28,7 +28,7 @@
   "build": {
     "publish": {
       "provider": "github",
-      "owner": "iAJue",
+      "owner": "lijsjust2",
       "repo": "MoeKoeMusic"
     },
     "compression": "maximum",
