@@ -50,6 +50,49 @@ const onArtistClick = (artist) => {
   margin-bottom: 20px;
 }
 
+/* 移动端响应式布局 */
+@media (max-width: 768px) {
+  .artist-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .artist-avatar {
+    height: 150px;
+  }
+  
+  .artist-avatar img {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .artist-name {
+    font-size: 16px;
+  }
+  
+  .artist-info {
+    padding: 10px;
+  }
+  
+  .artist-stats {
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  
+  .stat-item {
+    font-size: 12px;
+  }
+  
+  .artist-counts {
+    gap: 5px;
+  }
+  
+  .count-item {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+}
+
 .artist-card {
   display: flex;
   flex-direction: column;

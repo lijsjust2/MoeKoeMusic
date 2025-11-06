@@ -144,7 +144,7 @@ const loadSelectedRanks = async (rankList, rankIds) => {
 };
 
 // 随机选择并加载榜单
-const loadRandomRanks = async (rankList, count = 4) => {
+const loadRandomRanks = async (rankList, count = 1) => {
     const randomRanks = rankList.sort(() => 0.5 - Math.random()).slice(0, count);
     
     for (const rank of randomRanks) {
@@ -160,16 +160,17 @@ const loadRandomRanks = async (rankList, count = 4) => {
 const toggleRank = async (rank) => {
     const index = selectedRankIds.value.indexOf(rank.rankid);
     
-    if (index === -1 && selectedRankIds.value.length < 6) {
-        selectedRankIds.value.push(rank.rankid);
+    if (index === -1) {
+        // 单选模式：先清空之前的选择
+        selectedRankIds.value.forEach(id => {
+            delete rankPagination.value[id];
+        });
+        
+        // 清空并添加新选择的榜单
+        selectedRankIds.value = [rank.rankid];
         initRankPagination(rank.rankid);
-        displayedRanks.value.push(rank);
+        displayedRanks.value = [rank];
         await loadRankSongs(rank.rankid, 1, false);
-    } else if (index !== -1) {
-        selectedRankIds.value.splice(index, 1);
-        displayedRanks.value = displayedRanks.value.filter(r => r.rankid !== rank.rankid);
-        // 清理分页状态
-        delete rankPagination.value[rank.rankid];
     }
     saveSelectedRanks();
 };
@@ -256,9 +257,10 @@ onMounted(async () => {
         const savedRankIds = localStorage.getItem('selectedRankIds');
         if (savedRankIds) {
             const rankIds = JSON.parse(savedRankIds);
-            await loadSelectedRanks(allRanks.value, rankIds);
+            // 单选模式：只加载第一个保存的榜单
+            await loadSelectedRanks(allRanks.value, [rankIds[0]]);
         } else {
-            await loadRandomRanks(allRanks.value, 4);
+            await loadRandomRanks(allRanks.value, 1);
         }
     }
 });
@@ -270,6 +272,8 @@ onMounted(async () => {
     flex-direction: column;
     gap: 20px;
     padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
 .rank-selector {
@@ -304,9 +308,10 @@ onMounted(async () => {
 
 .ranking-list {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: 20px;
     padding: 20px;
+    justify-items: center;
 }
 
 .ranking-item {
@@ -318,6 +323,8 @@ onMounted(async () => {
     height: 600px;
     display: flex;
     flex-direction: column;
+    width: 100%;
+    max-width: 800px;
 }
 
 .ranking-item:hover {
@@ -589,9 +596,10 @@ onMounted(async () => {
 
 @media (max-width: 1200px) {
     .ranking-list {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr;
         gap: 15px;
         padding: 15px;
+        justify-items: center;
     }
     
     .ranking-item {
@@ -620,6 +628,7 @@ onMounted(async () => {
 @media (max-width: 768px) {
     .ranking-container {
         padding: 10px;
+        max-width: 100%;
     }
     
     .rank-selector {
@@ -636,6 +645,11 @@ onMounted(async () => {
         gap: 10px;
         padding: 10px;
         grid-template-columns: 1fr;
+        justify-items: center;
+    }
+    
+    .ranking-item {
+        max-width: 100%;
     }
     
     .ranking-item {

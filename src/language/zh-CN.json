@@ -82,7 +82,7 @@
   "chang-ting-ban": "畅听版:",
   "shou-ge": "首歌",
   "shou-ye": "首页",
-  "yin-le-ku": "音乐库",
+  "yin-le-ku": "我的音乐库",
   "sou-suo-yin-le-ge-shou-ge-dan": "搜索音乐、歌手、歌单、分享码...",
   "she-zhi": "设置",
   "tui-chu": "退出",
@@ -212,5 +212,15 @@
   "fen-zhong": "分钟",
   "le-ling": "乐龄",
   "nian": "年",
-  "ting-ge-shi-chang": "听歌时长"
+  "ting-ge-shi-chang": "听歌时长",
+  "mei-you-ke-xia-zai-de-ge-qu": "没有可下载的歌曲",
+  "ben-di-yin-le-wu-fa-xia-zai": "本地音乐无法下载",
+  "yun-pan-yin-le-wu-fa-xia-zai": "云盘音乐无法下载",
+  "xia-zai-zheng-bu": "下载中...",
+  "xia-zai-wan-cheng": "下载完成",
+  "xia-zai-shi-bai": "下载失败",
+  "xia-zai-ge-qu": "下载歌曲",
+  "qu-xiao-xia-zai": "取消下载",
+  "huo-qu-ge-qu-URL-shi-bai": "获取歌曲URL失败",
+  "xia-zai-yi-chu-fa": "下载已开始"
 }

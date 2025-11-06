@@ -26,6 +26,15 @@
                         @click="toggleFavorite(detail.list_create_gid)" :class="{ 'active': isPlaylistFavorited }">
                         <i class="fas fa-heart"></i>
                     </button>
+                    <!-- 移动端显示的分享按钮 -->
+                    <button class="fav-btn share-btn" v-if="!isArtist" @click="sharePlaylist">
+                        <i class="fas fa-share-alt"></i>
+                    </button>
+                    <!-- 移动端显示的添加到播放列表按钮 -->
+                    <button class="fav-btn add-to-playlist-btn" v-if="!isArtist" @click="addPlaylistToQueue($event,true)" title="添加至播放列表">
+                        <i class="fas fa-add"></i>
+                    </button>
+                    <!-- 桌面端使用的下拉菜单 -->
                     <div class="more-btn-container" v-if="!isArtist">
                         <button class="more-btn" @click="toggleDropdown">
                             <i class="fas fa-ellipsis-h"></i>
@@ -48,9 +57,7 @@
             </div>
         </div>
 
-        <!-- 导航按钮 -->
-        <i class="location-arrow fas fa-location-arrow" @click="scrollToItem" :title="t('dang-qian-bo-fang-ge-qu')"></i>
-        <img :src="`./assets/images/lemon.gif`" class="scroll-bottom-img" @click="scrollToFirstItem" :title="t('fan-hui-ding-bu')"/>
+        <!-- 导航按钮已移除 -->
 
         <!-- 歌曲列表 -->
         <div class="track-list-container">
@@ -80,9 +87,6 @@
                             最新
                         </button>
                     </div>
-                    <button class="view-mode-btn" @click="toggleViewMode" :title="viewMode === 'list' ? '切换到网格视图' : '切换到列表视图'">
-                        <i class="fas" :class="viewMode === 'list' ? 'fa-th' : 'fa-list'"></i>
-                    </button>
                     <input type="text" v-model="searchQuery" @keyup.enter="searchTracks" :placeholder="t('sou-suo-ge-qu')" class="search-input" />
                 </div>
             </div>
@@ -107,10 +111,10 @@
                 </div>
             </div>
 
-            <RecycleScroller ref="recycleScrollerRef" :items="filteredTracks" :item-size="viewMode === 'list' ? 50 : 70" class="track-list" key-field="hash">
+            <RecycleScroller ref="recycleScrollerRef" :items="filteredTracks" :item-size="50" class="track-list" key-field="hash">
                 <template #default="{ item, index }">
                     <div class="li" :key="item.hash" 
-                        :class="{ 'cover-view': viewMode === 'grid', 'selected': selectedTracks.includes(index) }"
+                        :class="{ 'selected': selectedTracks.includes(index) }"
                         @click="batchSelectionMode ? selectTrack(index, $event) : playSong(item.hash, item.name, item.cover, item.author)"
                         @contextmenu.prevent="showContextMenu($event, item)">
                         
@@ -120,13 +124,7 @@
                         </div>
                         <div class="track-number" v-else>{{ index + 1 }}</div>
 
-                        <!-- 网格模式封面 -->
-                        <div class="track-cover" v-if="viewMode === 'grid'">
-                            <img :src="item.cover || './assets/images/ico.png'" alt="Cover">
-                            <div class="track-cover-overlay">
-                                <i :class="props.playerControl?.currentSong.hash == item.hash ? 'fas fa-music' : 'fas fa-play'"></i>
-                            </div>
-                        </div>
+                        <!-- 网格模式封面已移除，视图模式固定为列表视图 -->
 
                         <!-- 歌曲信息 -->
                         <div class="track-title" :title="item.name">{{ item.name }}
@@ -137,7 +135,7 @@
                         <div class="track-artist" :title="item.author">{{ item.author }}</div>
                         <div class="track-album" :title="item.album">{{ item.album }}</div>
                         <div class="track-timelen">
-                            <button v-if="props.playerControl?.currentSong.hash == item.hash && viewMode === 'list'" 
+                            <button v-if="props.playerControl?.currentSong.hash == item.hash" 
                                 class="queue-play-btn fas fa-music"></button>
                             {{ $formatMilliseconds(item.timelen) }}
                         </div>
@@ -160,8 +158,8 @@
                 <div v-for="note in flyingNotes" :key="note.id" class="flying-note" :style="note.style">♪</div>
             </transition-group>
         </div>
+        <PlaylistSelectModal ref="playlistSelect" :current-song="songs"/>
     </div>
-    <PlaylistSelectModal ref="playlistSelect" :current-song="songs"/>
 </template>
 
 <script setup>
@@ -231,19 +229,12 @@ const isAllSelected = computed(() => {
     return selectedTracks.value.length === filteredTracks.value.length && filteredTracks.value.length > 0;
 });
 
-// 视图模式相关状态
-const viewMode = ref('list'); // 'list' or 'grid'
-
 const props = defineProps({
     playerControl: Object
 });
 
 onMounted(() => {
     isFollowed.value = !!route.query.unfollow;
-    const savedViewMode = localStorage.getItem('trackViewMode');
-    if (savedViewMode) {
-        viewMode.value = savedViewMode;
-    }
     loadData();
     document.addEventListener('click', handleClickOutside);
 });
@@ -785,11 +776,8 @@ const handleSongRemoved = (fileid) => {
     filteredTracks.value = filteredTracks.value.filter(track => track.originalData?.fileid !== fileid);
 };
 
-// 切换视图模式
-const toggleViewMode = () => {
-    viewMode.value = viewMode.value === 'list' ? 'grid' : 'list';
-    localStorage.setItem('trackViewMode', viewMode.value);
-};
+// 视图模式固定为列表视图，不再提供切换功能
+// 移除了toggleViewMode函数以确保视图模式不会被更改
 
 // 切换歌手歌曲排序方式
 const changeArtistSort = (sortType) => {
@@ -877,6 +865,111 @@ const changeArtistSort = (sortType) => {
     gap: 10px;
 }
 
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 30px;
+    }
+    
+    .cover-art {
+        width: 150px;
+        height: 150px;
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+    
+    .title {
+        font-size: 24px;
+        width: 100%;
+    }
+    
+    .subtitle {
+        font-size: 14px;
+    }
+    
+    .description {
+        font-size: 14px;
+        max-height: 120px;
+    }
+    
+    .actions {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 10px;
+        width: 100%;
+    }
+    
+    .actions button {
+        flex-shrink: 0;
+        font-size: 14px;
+        padding: 8px 16px;
+    }
+    
+    /* 确保四个按钮都显示，不使用下拉菜单 */
+    .more-btn-container {
+        display: none;
+    }
+    
+    .actions .share-btn, 
+    .actions .add-to-playlist-btn {
+        display: flex;
+        align-items: center;
+    }
+    
+    /* 调整歌曲列表相关样式 */
+    .track-list-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .track-list-actions {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    
+    .search-input {
+        width: 100%;
+    }
+    
+    .track-list {
+        height: 500px;
+    }
+    
+    /* 简化表头 */
+    .track-album-header {
+        display: none;
+    }
+    
+    .track-artist-header {
+        flex: 1;
+    }
+    
+    .track-title-header {
+        flex: 2;
+    }
+    
+    /* 调整歌曲列表项 */
+    .track-album {
+        display: none;
+    }
+    
+    /* 调整位置箭头 */
+    .location-arrow {
+        bottom: 120px;
+        font-size: 30px;
+    }
+    
+    .scroll-bottom-img {
+        width: 50px;
+        height: 50px;
+        bottom: 60px;
+        right: 70px;
+    }
+}
+
 .primary-btn, .follow-btn {
     background-color: #ff69b4;
     color: white;
@@ -907,6 +1000,12 @@ const changeArtistSort = (sortType) => {
     border: 1px solid var(--secondary-color);
 }
 
+/* 默认在桌面端隐藏额外的按钮 */
+.share-btn,
+.add-to-playlist-btn {
+    display: none;
+}
+
 .fav-btn i {
     color: #999;
 }
@@ -928,7 +1027,7 @@ const changeArtistSort = (sortType) => {
 }
 
 .track-list-title {
-    font-size: 24px;
+    font-size: 18px;
     font-weight: bold;
     margin-bottom: 10px;
     color: var(--primary-color);
@@ -963,29 +1062,7 @@ const changeArtistSort = (sortType) => {
     color: white;
 }
 
-/* 视图模式切换按钮 */
-.view-mode-btn {
-    background-color: transparent;
-    border: 1px solid var(--secondary-color);
-    padding: 5px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-color);
-    width: 36px;
-    height: 31px;
-    transition: all 0.3s ease;
-}
-
-.view-mode-btn:hover {
-    background-color: rgba(var(--primary-color-rgb), 0.1);
-}
-
-.view-mode-btn i {
-    font-size: 16px;
-}
+/* 视图模式切换按钮已移除，视图固定为列表模式 */
 
 .selected-count {
     position: absolute;
@@ -1127,6 +1204,7 @@ const changeArtistSort = (sortType) => {
     font-weight: bold;
     margin-right: 10px;
     width: 30px;
+    font-size: 13px;
 }
 
 .track-title {
@@ -1134,6 +1212,7 @@ const changeArtistSort = (sortType) => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-size: 14px;
 }
 
 .track-artist {
@@ -1142,6 +1221,7 @@ const changeArtistSort = (sortType) => {
     overflow: hidden;
     text-overflow: ellipsis;
     padding: 0 10px;
+    font-size: 13px;
 }
 
 .track-album {
@@ -1150,11 +1230,13 @@ const changeArtistSort = (sortType) => {
     overflow: hidden;
     text-overflow: ellipsis;
     padding: 0 10px;
+    font-size: 13px;
 }
 
 .track-timelen {
     width: 95px;
     text-align: right;
+    font-size: 13px;
 }
 
 .icon {
@@ -1306,6 +1388,7 @@ const changeArtistSort = (sortType) => {
     font-weight: bold;
     background-color: rgba(var(--primary-color-rgb), 0.1);
     border-radius: 5px 5px 0 0;
+    font-size: 14px;
 }
 
 .track-checkbox-header {
@@ -1352,102 +1435,12 @@ const changeArtistSort = (sortType) => {
 }
 
 /* 网格视图样式 */
-.li.cover-view {
-    height: 60px;
-    padding: 5px 10px;
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid #eee;
-    border-radius: 5px;
-}
-
-.li.cover-view:hover {
-    background-color: var(--background-color);
-}
-
-.track-cover {
-    position: relative;
-    width: 50px;
-    height: 50px;
-    margin-right: 15px;
-    overflow: hidden;
-    border-radius: 4px;
-    flex-shrink: 0;
-}
-
-.track-cover img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
-}
-
-.li.cover-view:hover .track-cover img {
-    transform: scale(1.05);
-}
-
-.track-cover-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 20px;
-}
-
-.li.cover-view:hover .track-cover-overlay {
-    opacity: 1;
-}
-
+/* 网格视图样式已移除，因为视图模式固定为列表视图 */
+/* 保持列表视图相关的样式以确保正常显示 */
 .track-list {
     height: 800px;
     scrollbar-width: thin;
     scrollbar-color: transparent transparent; 
     overflow: auto;
-}
-
-/* 调整封面视图下的其他元素样式 */
-.li.cover-view .track-title {
-    flex: 2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.li.cover-view .track-artist {
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding: 0 10px;
-}
-
-.li.cover-view .track-album {
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding: 0 10px;
-}
-
-.li.cover-view .track-timelen {
-    width: 95px;
-    text-align: right;
-}
-
-.li.cover-view .track-checkbox,
-.li.cover-view .track-number {
-    margin-right: 10px;
-    width: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 </style>

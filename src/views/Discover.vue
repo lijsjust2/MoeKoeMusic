@@ -1,6 +1,5 @@
 <template>
     <div class="discover-page">
-        <h2 class="section-title">{{ $t('fa-xian') }}</h2>
         
         <div class="category-container">
             <div class="main-categories">
@@ -195,7 +194,8 @@ const playlist = async () => {
     display: flex;
     gap: 15px;
     flex-wrap: wrap;
-    justify-content: space-evenly;
+    justify-content: space-between;
+    width: 100%;
 }
 
 .music-card {
@@ -205,7 +205,28 @@ const playlist = async () => {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     padding: 10px;
     text-align: center;
-    width: 180px;
+    width: calc(50% - 10px);
+    box-sizing: border-box;
+}
+
+
+
+@media (min-width: 769px) {
+    .music-card {
+        width: calc(50% - 10px);
+    }
+}
+
+@media (min-width: 1024px) {
+    .music-card {
+        width: calc(33.33% - 10px);
+    }
+}
+
+@media (min-width: 1200px) {
+    .music-card {
+        width: calc(25% - 10px);
+    }
 }
 
 .music-card:hover {
@@ -219,8 +240,10 @@ const playlist = async () => {
 }
 
 .music-info h3 {
-    font-size: 16px;
+    font-size: 14px;
     margin: 10px 0 5px;
+    font-weight: bold;
+    color: var(--primary-color);
 }
 
 .music-info p {

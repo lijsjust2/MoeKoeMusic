@@ -601,6 +601,118 @@ const getSortIconClass = (field) => {
     gap: 10px;
 }
 
+/* 移动端响应式布局 */
+@media (max-width: 768px) {
+    .detail-page {
+        padding: 15px;
+    }
+    
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 30px;
+    }
+    
+    .cover-art {
+        width: 150px;
+        height: 150px;
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+    
+    .info {
+        max-width: 100%;
+    }
+    
+    .title {
+        font-size: 24px;
+        width: 100%;
+    }
+    
+    .subtitle {
+        font-size: 14px;
+    }
+    
+    .storage-info {
+        max-width: 100%;
+    }
+    
+    .actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .primary-btn, .upload-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 15px;
+    }
+    
+    .track-list-title {
+        font-size: 20px;
+    }
+    
+    .track-list-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-input {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .track-list {
+        height: 600px;
+    }
+    
+    /* 移动端隐藏部分列以节省空间 */
+    .track-artist,
+    .track-album,
+    .track-size,
+    .track-artist-header,
+    .track-album-header,
+    .track-size-header {
+        display: none;
+    }
+    
+    /* 调整剩余列的宽度 */
+    .track-title {
+        flex: 3;
+    }
+    
+    .track-title-header {
+        flex: 3;
+    }
+    
+    /* 调整封面视图在移动端的显示 */
+    .li.cover-view {
+        height: 50px;
+        padding: 5px;
+    }
+    
+    .track-cover {
+        width: 40px;
+        height: 40px;
+        margin-right: 10px;
+    }
+    
+    .li.cover-view .track-title {
+        flex: 3;
+    }
+    
+    .li.cover-view .track-artist,
+    .li.cover-view .track-size {
+        display: none;
+    }
+    
+    /* 隐藏定位箭头和回到顶部按钮在移动端 */
+    .location-arrow,
+    .scroll-bottom-img {
+        display: none;
+    }
+}
+
 .primary-btn, .upload-btn {
     background-color: #ff69b4;
     color: white;

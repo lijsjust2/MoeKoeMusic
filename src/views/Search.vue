@@ -1,7 +1,18 @@
 <template>
     <div class="search-page">
         <div class="search-results">
-            <h2 class="section-title">{{ $t('sou-suo-jie-guo') }}</h2>
+            <!-- 添加搜索输入框和按钮 -->
+            <div class="search-input-container">
+                <input 
+                    type="text" 
+                    v-model="searchQuery" 
+                    class="search-input" 
+                    placeholder="搜索歌曲、歌手、专辑或歌单..."
+                    @keyup.enter="performSearch"
+                />
+                <button class="search-button" @click="performSearch">搜索</button>
+            </div>
+            
             <!-- 添加搜索类型标签栏 -->
             <div class="search-tabs">
                 <button 
@@ -266,6 +277,42 @@ const handleArtistClick = (artist) => {
     padding: 20px;
 }
 
+/* 搜索输入框样式 */
+.search-input-container {
+    display: flex;
+    margin-bottom: 30px;
+    gap: 10px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 12px 20px;
+    font-size: 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 25px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.search-input:focus {
+    border-color: var(--primary-color);
+}
+
+.search-button {
+    padding: 12px 30px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.search-button:hover {
+    background-color: #ff568f;
+}
+
 .search-tabs {
     display: flex;
     margin-bottom: 20px;
@@ -441,13 +488,6 @@ const handleArtistClick = (artist) => {
     border-color: #ddd;
 }
 
-.section-title {
-    font-size: 28px;
-    font-weight: bold;
-    margin-bottom: 30px;
-    color: var(--primary-color);
-}
-
 .page-number.ellipsis {
     background-color: transparent;
     border: none;
@@ -461,7 +501,6 @@ const handleArtistClick = (artist) => {
     background-color: transparent;
     color: #333;
 }
-
 
 </style>
 

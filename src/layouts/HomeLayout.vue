@@ -115,6 +115,13 @@ main {
     padding-bottom: 150px;
 }
 
+/* 移动端响应式设计 */
+@media (max-width: 768px) {
+    main {
+        margin-bottom: 120px; /* 在移动端减小底部边距，确保内容不会被播放器遮挡过多 */
+    }
+}
+
 a {
     text-decoration: none;
     color: inherit;

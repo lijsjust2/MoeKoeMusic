@@ -90,7 +90,7 @@
                         </div>
                     </router-link>
                 </div>
-                <div v-if="selectedCategory === 0 && !isLoading" class="music-card create-playlist-button">
+                <div v-if="selectedCategory === 0 && !isLoading && typeof window !== 'undefined' && window.electron" class="music-card create-playlist-button">
                     <router-link :to="{
                         path: '/LocalMusic'
                     }">

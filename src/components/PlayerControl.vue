@@ -35,12 +35,13 @@
                 <button class="extra-btn" title="桌面歌词" v-if="isElectron()" @click="desktopLyrics"><i
                         class="fas">词</i></button>
                 <div class="playback-speed">
-                    <button class="extra-btn" @click="toggleSpeedMenu" title="播放速度">
+                    <button class="extra-btn" @click="toggleSpeedMenu" @touchstart.prevent="handleSpeedTouch" title="播放速度">
                         <i class="fas fa-tachometer-alt"></i>
                     </button>
-                    <div v-if="showSpeedMenu" class="speed-menu">
+                    <div v-if="showSpeedMenu" class="speed-menu mobile-speed-menu">
                         <div v-for="speed in playbackSpeeds" :key="speed" class="speed-option"
-                            :class="{ active: currentSpeed === speed }" @click="changePlaybackSpeed(speed)">
+                            :class="{ active: currentSpeed === speed }" @click="changePlaybackSpeed(speed)"
+                            @touchstart.prevent="changePlaybackSpeed(speed)">
                             {{ speed }}x
                         </div>
                     </div>
@@ -51,6 +52,8 @@
                         class="fas fa-add"></i></button>
                 <button class="extra-btn" title="分享歌曲" @click="share('share?hash=' + currentSong.hash)"><i
                         class="fas fa-share"></i></button>
+                <button class="extra-btn" title="下载歌曲" @click="downloadSong()"><i
+                        class="fas fa-download"></i></button>
                 <button class="extra-btn" @click="togglePlaybackMode">
                     <i v-if="currentPlaybackModeIndex != '2'" :class="currentPlaybackMode.icon"
                         :title="currentPlaybackMode.title"></i>
@@ -90,9 +93,8 @@
 
                 <div class="left-section">
                     <div class="album-art-large">
-                        <img v-if="easterEggImage" :src="easterEggImage.src" :class="easterEggClass" alt="Easter Egg" />
-                        <img :src="currentSong?.img || './assets/images/!.png'" alt="Album Art" />
-                    </div>
+                            <img :src="currentSong?.img || './assets/images/!.png'" alt="Album Art" />
+                        </div>
                     <div class="song-details">
                         <div class="song-title">{{ currentSong?.name }}</div>
                         <div class="artist">{{ currentSong?.author }}</div>
@@ -200,6 +202,101 @@ const lyricsFlag = ref(false);
 
 // 辅助函数
 const { isElectron, throttle, getVip, desktopLyrics } = useHelpers(t);
+
+// 下载歌曲函数
+const downloadSong = async () => {
+    if (!currentSong.value || !currentSong.value.hash) {
+        console.log('[PlayerControl] 没有当前歌曲可下载');
+        window.$modal.alert(t('mei-you-ke-xia-zai-de-ge-qu'));
+        return;
+    }
+
+    try {
+        console.log('[PlayerControl] 开始下载歌曲:', currentSong.value.name);
+        
+        // 检查是否已有URL，如果没有则尝试获取
+        let songUrl = currentSong.value.url;
+        if (!songUrl || songUrl.startsWith('blob:')) {
+            console.log('[PlayerControl] 尝试获取歌曲URL');
+            
+            let result;
+            if (currentSong.value.isCloud) {
+                result = await addCloudMusicToQueue(
+                    currentSong.value.hash,
+                    currentSong.value.name,
+                    currentSong.value.author,
+                    currentSong.value.timeLength,
+                    currentSong.value.img,
+                    false
+                );
+            } else if (currentSong.value.isLocal) {
+                // 本地音乐不需要下载
+                window.$modal.alert(t('ben-di-yin-le-wu-fa-xia-zai'));
+                return;
+            } else {
+                result = await addSongToQueue(
+                    currentSong.value.hash,
+                    currentSong.value.name,
+                    currentSong.value.img,
+                    currentSong.value.author,
+                    false
+                );
+            }
+            
+            if (result && result.song && result.song.url) {
+                songUrl = result.song.url;
+            } else {
+                console.error('[PlayerControl] 无法获取歌曲URL');
+                window.$modal.alert(t('huo-qu-ge-qu-URL-shi-bai'));
+                return;
+            }
+        }
+        
+        console.log('[PlayerControl] 获取到歌曲URL:', songUrl);
+        
+        // 使用fetch API获取文件blob，确保强制下载而不是播放
+        const response = await fetch(songUrl);
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        
+        const blob = await response.blob();
+        console.log('[PlayerControl] 成功获取文件blob，大小:', blob.size);
+        
+        // 创建blob URL
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // 创建下载链接
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        
+        // 设置文件名，避免特殊字符
+        let fileName = `${currentSong.value.name} - ${currentSong.value.author}.mp3`;
+        fileName = fileName.replace(/[<>"/\|?*:]/g, '_'); // 替换Windows文件名中的非法字符
+        
+        link.download = fileName;
+        link.target = '_blank'; // 确保在新标签中打开，不会干扰当前页面
+        
+        // 触发下载
+        document.body.appendChild(link);
+        
+        // 使用setTimeout确保DOM操作完成
+        setTimeout(() => {
+            link.click();
+            // 清理
+            document.body.removeChild(link);
+            // 延迟释放blob URL，确保下载完成
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        }, 0);
+        
+        console.log('[PlayerControl] 歌曲下载已触发:', fileName);
+        window.$modal.alert(t('xia-zai-yi-chu-fa'));
+        
+    } catch (error) {
+        console.error('[PlayerControl] 下载歌曲失败:', error);
+        window.$modal.alert(t('xia-zai-shi-bai'));
+    }
+};
 
 // Easter Egg 相关
 const easterEggImages = [
@@ -831,6 +928,29 @@ const toggleMute = () => {
 const showSpeedMenu = ref(false);
 const currentSpeed = ref(1.0);
 const playbackSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+
+// 处理移动端触摸事件
+const handleSpeedTouch = (event) => {
+    // 阻止默认行为和冒泡，防止事件穿透
+    event.preventDefault();
+    event.stopPropagation();
+    showSpeedMenu.value = !showSpeedMenu.value;
+    
+    // 如果打开了菜单，添加点击外部关闭的逻辑
+    if (showSpeedMenu.value) {
+        const closeMenu = (e) => {
+            if (!e.target.closest('.playback-speed')) {
+                showSpeedMenu.value = false;
+                document.removeEventListener('click', closeMenu);
+                document.removeEventListener('touchstart', closeMenu);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+            document.addEventListener('touchstart', closeMenu);
+        }, 0);
+    }
+};
 
 // 切换速度菜单
 const toggleSpeedMenu = () => {

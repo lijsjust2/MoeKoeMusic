@@ -1,70 +1,9 @@
 <template>
     <div class="container">
-        <h2 class="section-title">{{ $t('tui-jian') }}</h2>
-        <div class="recommendations">
-            <div class="recommend-card gradient-background">
-                <div class="radio-card">
-                    <div class="radio-left">
-                        <div class="disc-container">
-                            <img src="@/assets/images/home/hutao1.png" class="radio-disc">
-                        </div>
-                        <div class="decorative-box">
-                            <div class="music-bars">
-                                <div class="bar"></div>
-                                <div class="bar"></div>
-                                <div class="bar"></div>
-                                <div class="bar"></div>
-                            </div>
-                        </div>
-                        <div class="play-button" @click="playFM"></div>
-                        <div class="note-container">
-                            <transition-group name="fly-note">
-                                <div v-for="note in flyingNotes" :key="note.id" class="flying-note" :style="note.style">
-                                    ♪</div>
-                            </transition-group>
-                        </div>
-                    </div>
-                    <div class="radio-content gradient-background">
-                        <div class="radio-title">
-                            <span class="heart-icon">💖</span>
-                            MoeKoe Radio
-                            <span class="shuffle-icon" @click="toggleMode">{{ modeIcon }}</span>
-                        </div>
-                        <div class="radio-subtitle">{{ radioSubtitle }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="recommend-card">
-                <router-link :to="{
-                    path: '/Ranking'
-                }" class="ranking-entry">
-                    <div class="ranking-content">
-                        <img src="@/assets/images/home/hutao2.png" class="ranking-icon">
-                        <h3 class="ranking-title">排行榜</h3>
-                        <div class="ranking-description">发现你的专属好歌</div>
-                    </div>
-                </router-link>
-            </div>
-
-            <div class="recommend-card">
-                <div class="playlist-entry gradient-background">
-                    <router-link :to="{
-                        path: '/PlaylistDetail',
-                        query: { global_collection_id: 'collection_3_25230245_24_0' }
-                    }">
-                        <div class="playlist-content">
-                            <div class="playlist-icon">
-                                <img src="@/assets/images/home/hutao.png" />
-                            </div>
-                            <div class="ranking-description">送给也喜欢音乐的你</div>
-                        </div>
-                    </router-link>
-                </div>
-            </div>
+        <div v-if="!authStore.isAuthenticated" class="login-tip">
+            请先<span class="login-link" @click="showLoginModal">登录酷狗账号</span>
         </div>
-
         <h2 class="section-title">
-            <img src="@/assets/images/home/mama.png" class="mama" @click="addAllSongsToQueue">
             {{ $t('mei-ri-tui-jian') }}
         </h2>
         <div v-if="isLoading" class="skeleton-loader">
@@ -112,8 +51,13 @@ import { get } from '../utils/request';
 import ContextMenu from '../components/ContextMenu.vue';
 import { useRoute,useRouter } from 'vue-router';
 import { getCover } from '../utils/utils';
+import { MoeAuthStore } from '../stores/store';
 
+const authStore = MoeAuthStore();
 const router = useRouter();
+const showLoginModal = () => {
+    router.push({ path: '/login', query: { redirect: '/home' } });
+};
 const route = useRoute();
 const songs = ref([]);
 const special_list = ref([]);
@@ -135,81 +79,6 @@ const showContextMenu = (event, song) => {
 const props = defineProps({
     playerControl: Object
 });
-
-const currentMode = ref('1');
-const modes = ['1', '2', '3', '4', '6'];
-
-const modeIcon = computed(() => {
-    switch (currentMode.value) {
-        case '1': return '💖';
-        case '2': return '🎶';
-        case '3': return '🔥';
-        case '4': return '💎';
-        case '6': return '👑';
-        default: return '💖';
-    }
-});
-
-const radioSubtitle = computed(() => {
-    switch (currentMode.value) {
-        case '1': return '私人专属好歌推荐';
-        case '2': return '经典怀旧金曲精选';
-        case '3': return '热门好歌随心听';
-        case '4': return '小众宝藏佳作发现';
-        case '6': return 'VIP专属音乐推荐';
-        default: return '根据你的听歌喜好推荐';
-    }
-});
-
-const toggleMode = () => {
-    const currentIndex = modes.indexOf(currentMode.value);
-    const nextIndex = (currentIndex + 1) % modes.length;
-    currentMode.value = modes[nextIndex];
-};
-
-const flyingNotes = ref([]);
-let noteId = 0;
-
-const playFM = async (event) => {
-    try {
-        const playButton = event.currentTarget;
-        const rect = playButton.getBoundingClientRect();
-        const note = {
-            id: noteId++,
-            style: {
-                '--start-x': `${rect.left + rect.width / 2}px`,
-                '--start-y': `${rect.top + rect.height / 2}px`,
-                'left': '0',
-                'top': '0'
-            }
-        };
-        flyingNotes.value.push(note);
-        setTimeout(() => {
-            flyingNotes.value = flyingNotes.value.filter(n => n.id !== note.id);
-        }, 1500);
-
-        const response = await get('/top/card', {
-            params: {
-                card_id: currentMode.value
-            }
-        });
-
-        if (response.status === 1 && response.data?.song_list?.length > 0) {
-            const newSongs = response.data.song_list.map(song => {
-                return {
-                    hash: song.hash,
-                    name: song.songname,
-                    cover: song.sizable_cover?.replace("{size}", 480).replace('http://', 'https://'),
-                    author: song.author_name,
-                    timelen: song.time_length
-                }
-            })
-            props.playerControl.addPlaylistToQueue(newSongs);
-        }
-    } catch (error) {
-        console.error('FM播放出错:', error);
-    }
-};
 
 onMounted(() => {
     recommend();
@@ -254,15 +123,7 @@ const privilegeSong = async (hash) => {
     const response = await get(`/privilege/lite`,{hash:hash});
     return response;
 }
-const addAllSongsToQueue = () => {
-    props.playerControl.addPlaylistToQueue(songs.value.map(song => ({
-        hash: song.hash,
-        name: song.ori_audio_name,
-        cover: song.sizable_cover?.replace("{size}", 480).replace('http://', 'https://'),
-        author: song.author_name,
-        timelen: song.time_length
-    })));
-};
+
 
 </script>
 
@@ -274,17 +135,10 @@ const addAllSongsToQueue = () => {
 }
 
 .section-title {
-    font-size: 28px;
+    font-size: 18px;
     font-weight: bold;
     margin-bottom: 30px;
     color: var(--primary-color);
-}
-
-.section-title .mama{
-    position: absolute;
-    height: 40px;
-    margin-left: 117px;
-    cursor: cell;
 }
 .recommendations {
     display: flex;
@@ -326,22 +180,23 @@ const addAllSongsToQueue = () => {
 .song-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 20px;
     margin-top: 20px;
-    justify-content: flex-start;
+    justify-content: space-between;
+    width: 100%;
 }
 
 .song-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    width: calc(20% - 30px);
+    width: calc(50% - 10px);
     background-color: #fff;
-    padding: 10px;
+    padding: 15px;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease;
     cursor: pointer;
+    box-sizing: border-box;
 }
 
 .song-item:hover {
@@ -357,21 +212,22 @@ const addAllSongsToQueue = () => {
 .song-info {
     display: flex;
     flex-direction: column;
+    margin-left: 15px;
     flex: 1;
-    min-width: 0;
 }
 
 .song-title {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: bold;
     color: var(--primary-color);
+    margin-bottom: 5px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .song-artist {
-    font-size: 14px;
+    font-size: 12px;
     color: #666;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -434,14 +290,6 @@ const addAllSongsToQueue = () => {
         width: calc(33.333% - 10px);
         min-width: 150px;
     }
-    
-    .playlist-title {
-        font-size: 14px;
-    }
-    
-    .playlist-description {
-        font-size: 12px;
-    }
 }
 
 @media screen and (max-width: 576px) {
@@ -472,13 +320,13 @@ const addAllSongsToQueue = () => {
 .playlist-title {
     font-weight: bold;
     margin-bottom: 5px;
-    font-size: 16px;
+    font-size: 14px;
     color: var(--primary-color);
 }
 
 .playlist-description {
     color: #666;
-    font-size: 14px;
+    font-size: 12px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -620,6 +468,20 @@ const addAllSongsToQueue = () => {
     50% {
         transform: scaleY(0.5);
     }
+}
+
+.login-tip {
+    color: #666;
+    margin-bottom: 20px;
+    font-size: 18px;
+    text-align: center;
+}
+
+.login-link {
+    color: var(--primary-color);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 18px;
 }
 
 .play-button {

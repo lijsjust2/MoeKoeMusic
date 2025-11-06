@@ -1,26 +1,16 @@
 <template>
     <header>
         <nav class="navigation">
-            <div class="navigation">
-                <button class="nav-arrow" @click="goBack" :disabled="!canGoBack">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                <button class="nav-arrow" @click="goForward" :disabled="!canGoForward">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-                <button class="nav-arrow" @click="refreshPage">
-                    <i class="fas fa-redo"></i>
-                </button>
-            </div>
             <div class="nav-links">
                 <router-link to="/">{{ $t('shou-ye') }}</router-link>
                 <router-link to="/discover">{{ $t('fa-xian') }}</router-link>
-                <router-link to="/library">{{ $t('yin-le-ku') }}</router-link>
+                <router-link to="/Ranking">排行</router-link>
+                <router-link to="/library">我的</router-link>
             </div>
             <div class="search-profile">
-                <div class="search-bar">
-                    <input v-model="searchQuery" type="text" :placeholder="$t('sou-suo-yin-le-ge-shou-ge-dan')" @keydown.enter="getSearch">
-                </div>
+                <button class="search-icon" @click="openSearchPage">
+                    <i class="fas fa-search"></i>
+                </button>
                 <div class="profile" @click="toggleProfile">
                     <img :src="MoeAuth.UserInfo ? MoeAuth.UserInfo.pic : './assets/images/profile.jpg'"
                         alt="Profile Picture">
@@ -76,25 +66,19 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { MoeAuthStore } from '../stores/store';
 import { openRegisterUrl } from '../utils/utils';
 import { useI18n } from 'vue-i18n';
 const MoeAuth = MoeAuthStore();
-const searchQuery = ref('');
 const isDisclaimerVisible = ref(false);
 const router = useRouter();
-const route = useRoute();
-const canGoBack = ref(false);
-const canGoForward = ref(false);
-const forwardStack = ref([]);
 const { t } = useI18n();
 const showNewBadge = ref(false);
 const downloadUrl = ref('');
 const appVersion = ref('');
 const platform = ref('');
 onMounted(() => {
-    updateNavigationStatus();
     if (window.electron) {
         window.electron.ipcRenderer.on('version', (version) => {
             appVersion.value = version;
@@ -106,30 +90,6 @@ onMounted(() => {
 });
 const Disclaimer = () => {
     isDisclaimerVisible.value = !isDisclaimerVisible.value;
-};
-const updateNavigationStatus = () => {
-    canGoBack.value = window.history.length > 1;
-    canGoForward.value = forwardStack.value.length > 0;
-};
-const goBack = () => {
-    if (canGoBack.value) {
-        forwardStack.value.push(route.fullPath);
-        router.back();
-    }
-    updateNavigationStatus();
-};
-const goForward = () => {
-    if (canGoForward.value) {
-        const forwardRoute = forwardStack.value.pop();
-        router.push(forwardRoute);
-    }
-    updateNavigationStatus();
-};
-router.afterEach(() => {
-    updateNavigationStatus();
-});
-const refreshPage = () => {
-    window.location.reload();
 };
 const logout = async () => {
     const result = await window.$modal.confirm(t('ni-que-ren-yao-tui-chu-deng-lu-ma'));
@@ -143,21 +103,16 @@ const showProfile = ref(false);
 const toggleProfile = () => {
     showProfile.value = !showProfile.value;
 };
-const getSearch = () => {
-    if (searchQuery.value.trim() !== '') {
-        if (searchQuery.value.includes('collection_')) {
-            router.push({
-                path: '/PlaylistDetail',
-                query: { global_collection_id: searchQuery.value }
-            });
-            return;
-        }
-        router.push({
-            path: '/search',
-            query: { q: searchQuery.value }
-        });
+const openSearchPage = () => {
+    router.push('/search');
+};
+const handleClickOutside = (event) => {
+    const queueProfile = document.querySelector('.profile-menu');
+    if (queueProfile && !queueProfile.contains(event.target) && !event.target.closest('.profile')) {
+        showProfile.value = false;
     }
 };
+
 onMounted(() => {
     document.addEventListener('click', handleClickOutside);
 });
@@ -165,13 +120,6 @@ onMounted(() => {
 onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);
 });
-
-const handleClickOutside = (event) => {
-    const queueProfile = document.querySelector('.profile-menu');
-    if (queueProfile && !queueProfile.contains(event.target) && !event.target.closest('.profile')) {
-        showProfile.value = false;
-    }
-};
 
 const fetchLatestVersion = async () => {
     try {
@@ -201,65 +149,6 @@ const isVersionLower = (current, latest) => {
 };
 </script>
 <style scoped>
-.navigation {
-    display: flex;
-    gap: 10px;
-}
-
-.nav-arrow {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.nav-arrow:disabled i {
-    color: #ccc;
-    cursor: not-allowed;
-}
-
-.nav-arrow i {
-    font-size: 24px;
-    color: #333;
-}
-
-.nav-arrow:hover {
-    background-color: #f0f0f0;
-}
-
-
-button {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 8px;
-    background: transparent;
-    margin: 4px;
-    border-radius: 25%;
-    transition: .2s
-}
-
-button .svg-icon {
-    color: var(--color-text);
-    height: 16px;
-    width: 16px
-}
-
-button:first-child {
-    margin-left: 0
-}
-
-button:hover {
-    background: var(--color-secondary-bg-for-transparent)
-}
-
-button:active {
-    transform: scale(.92)
-}
-
 header {
     background-color: #fff;
     padding: 15px 0;
@@ -268,14 +157,6 @@ header {
     width: 100%;
     top: 0px;
     z-index: 9;
-}
-
-.nav-arrow,
-.nav-links a,
-.search-bar input,
-.profile,
-.profile img {
-    -webkit-app-region: no-drag;
 }
 
 .navigation {
@@ -289,7 +170,7 @@ header {
 
 .nav-links {
     display: flex;
-    gap: 30px;
+    gap: 20px;
     justify-content: center;
     flex-grow: 1;
 }
@@ -301,11 +182,9 @@ header {
     font-size: 18px;
     font-weight: 700;
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 8px 12px;
     transition: .2s;
     -webkit-user-drag: none;
-    margin-right: 12px;
-    margin-left: 12px
 }
 
 .nav-links a:hover {
@@ -318,28 +197,32 @@ header {
 }
 
 .nav-links a.active {
-    color: var(--color-primary)
+    color: var(--color-primary);
+    background-color: var(--color-secondary-bg-for-transparent);
 }
 
 .search-profile {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 15px;
 }
 
-.search-bar input {
-    padding: 8px 15px;
-    border-radius: 20px;
-    border: 1px solid var(--secondary-color);
-    font-size: 14px;
-    width: 200px;
-    transition: width 0.3s ease;
+.search-icon {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: var(--color-text);
+    transition: background-color 0.2s;
 }
 
-.search-bar input:focus {
-    width: 250px;
-    outline: none;
-    border-color: var(--primary-color);
+.search-icon:hover {
+    background-color: var(--color-secondary-bg-for-transparent);
 }
 
 .profile {
@@ -349,11 +232,16 @@ header {
     background-color: var(--secondary-color);
     cursor: pointer;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .profile img {
-    width: 41px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
+    object-fit: cover;
 }
 
 .profile-menu {
@@ -369,6 +257,7 @@ header {
     flex-direction: column;
     gap: 10px;
     animation: fadeInOut 0.3s ease-in-out;
+    z-index: 100;
 }
 
 @keyframes fadeInOut {
@@ -400,6 +289,42 @@ header {
 
 .profile-menu li a:hover {
     background-color: var(--secondary-color);
+}
+
+/* 移动端响应式样式 */
+@media (max-width: 768px) {
+    .navigation {
+        padding: 0 15px;
+    }
+    
+    .nav-links {
+        gap: 10px;
+        flex-grow: 1;
+    }
+    
+    .nav-links a {
+        font-size: 18px;
+        padding: 6px 8px;
+    }
+    
+    .search-icon {
+        font-size: 16px;
+        padding: 6px;
+    }
+    
+    .profile {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .profile img {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .search-profile {
+        gap: 10px;
+    }
 }
 
 .modal-overlay {

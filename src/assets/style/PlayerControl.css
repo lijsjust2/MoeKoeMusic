@@ -129,7 +129,8 @@
 }
 
 .song-info {
-    flex-grow: 0;
+    flex-grow: 1;
+    min-width: 0;
     cursor: pointer;
     margin-right: auto;
 }
@@ -160,7 +161,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-grow: 1;
+    margin-right: 0;
 }
 
 .control-btn {
@@ -229,16 +230,23 @@
     display: flex;
     align-items: center;
     margin-left: auto;
-    gap: 4px;
+    gap: 8px;
+    flex-shrink: 0;
+    justify-content: center;
 }
 
 .extra-btn {
-    background: none;
+    background: transparent;
     border: none;
-    font-size: 16px;
-    cursor: pointer;
-    padding: 0 8px;
     color: #666;
+    font-size: 18px;
+    padding: 8px;
+    cursor: pointer;
+    transition: color 0.2s;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 
@@ -349,6 +357,13 @@
 .duration {
     color: white;
     font-size: 12px;
+    position: relative;
+}
+
+.duration::after,
+.duration::before {
+    content: none !important;
+    display: none !important;
 }
 
 .progress-bar {
@@ -514,6 +529,111 @@
     transform: translate(-50%, -50%);
     z-index: 1;
     pointer-events: none;
+}
+
+/* 移动端倍速菜单样式 */
+.mobile-speed-menu {
+    position: fixed;
+    bottom: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    width: 120px;
+    text-align: center;
+}
+
+/* 移动端响应式设计 */
+@media (max-width: 768px) {
+    .player-container {
+        padding-bottom: 10px; /* 增加底部内边距，确保在有安全区域的设备上显示完整 */
+    }
+    
+    .player-bar {
+        flex-wrap: wrap;
+        gap: 5px;
+        padding: 8px;
+    }
+    
+    .album-art {
+        width: 45px;
+        height: 45px;
+        margin-right: 10px;
+    }
+    
+    .album-art img {
+        width: 45px;
+        height: 45px;
+    }
+    
+    .song-info {
+        flex-grow: 1;
+        margin-right: 0;
+        min-width: 0;
+    }
+    
+    .song-title {
+        width: 100%;
+        font-size: 0.9rem;
+        margin-bottom: 2px;
+    }
+    
+    .artist {
+        width: 100%;
+        font-size: 0.8rem;
+    }
+    
+    .controls {
+        order: 2;
+        margin-right: 0;
+        margin-left: 0;
+        width: auto;
+    }
+    
+    .control-btn {
+        font-size: 18px;
+        padding: 0 8px;
+    }
+    
+    .control-btn:nth-child(2) {
+        font-size: 20px;
+        margin: 0 4px;
+    }
+    
+    .extra-controls {
+        order: 3;
+        margin-right: 0;
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 5px;
+        scrollbar-width: none; /* Firefox */
+        justify-content: center;
+    }
+
+    .extra-controls::-webkit-scrollbar {
+        display: none; /* Chrome, Safari */
+    }
+
+    .extra-btn {
+        font-size: 18px;
+        padding: 8px;
+    }
+    
+    .volume-control {  
+        display: none; /* 在移动端隐藏音量控制，以节省空间 */
+    }
+    
+    .progress-bar {
+        height: 4px;
+    }
+    
+    .progress-bar:hover {
+        height: 6px;
+    }
+    
+    .progress-handle {
+        width: 10px;
+        height: 10px;
+    }
 }
 
 /* 普通界面的高潮点样式 */
