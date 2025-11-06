@@ -1,0 +1,64 @@
+name: Docker Build and Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: moekoemusic
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix={{sha}}-
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          load: true
+          tags: moekoemusic:latest
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save Docker image as tar
+        run: |
+          mkdir -p release-assets
+          docker save -o release-assets/moekoemusic-${{ github.sha }}.tar moekoemusic:latest
+          echo "IMAGE_FILENAME=moekoemusic-${{ github.sha }}.tar" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: image-${{ github.sha }}
+          release_name: Docker Image ${{ github.sha }}
+          body: |
+            Docker image for commit ${{ github.sha }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Docker image to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-assets/${{ env.IMAGE_FILENAME }}
+          asset_name: ${{ env.IMAGE_FILENAME }}
+          asset_content_type: application/x-tar
