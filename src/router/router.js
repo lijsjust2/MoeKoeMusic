@@ -73,16 +73,20 @@ router.beforeEach((to, from, next) => {
     const MoeAuth = MoeAuthStore()
     // 检查是否需要登录
     if (to.matched.some(record => record.meta.requiresAuth)) {
+        // 需要认证的路由
         if (!MoeAuth.isAuthenticated) {
+            // 未认证用户重定向到登录页
             next({
                 path: '/login',
                 query: { redirect: to.fullPath } 
             });
         } else {
-            next(); // 已认证，允许访问
+            // 已认证用户允许访问
+            next();
         }
     } else {
-        next(); // 不需要认证的页面，直接访问
+        // 不需要认证的页面，直接访问
+        next();
     }
 });
 

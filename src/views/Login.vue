@@ -249,7 +249,7 @@ const emailLogin = async () => {
         const response = await get(`/login?username=${emailForm.email}&password=${emailForm.password}`);
         if (response.status === 1) {
             MoeAuth.setData({ UserInfo: response.data });
-            router.push(route.query.redirect || '/library');
+            router.push('/library'); // 直接跳转到"我的"页面
             $message.success(t('deng-lu-cheng-gong'));
         }
     } catch (error) {
@@ -311,7 +311,7 @@ const phoneLogin = async (selectedUserId = null) => {
         const response = await get(url);
         if (response.status === 1) {
             MoeAuth.setData({ UserInfo: response.data });
-            router.push(route.query.redirect || '/library');
+            router.push('/library'); // 直接跳转到"我的"页面
             $message.success(t('deng-lu-cheng-gong'));
         }
     } catch (error) {
@@ -386,7 +386,7 @@ const checkQrStatus = async () => {
                 } else if (response.data.status === 4) {
                     clearInterval(interval.value);
                     MoeAuth.setData({ UserInfo: response.data });
-                    router.push(route.query.redirect || '/library');
+                    router.push('/library'); // 直接跳转到"我的"页面
                     $message.success(t('er-wei-ma-deng-lu-cheng-gong'));
                 } else if (response.data.status === 0) {
                     clearInterval(interval.value);
