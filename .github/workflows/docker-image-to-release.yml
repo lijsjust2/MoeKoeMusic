@@ -37,11 +37,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Get current date
+        id: date
+        run: |
+          CURRENT_DATE=$(date +'%Y%m%d%H%M')
+          echo "CURRENT_DATE=$CURRENT_DATE" >> $GITHUB_ENV
+
       - name: Save Docker image as tar
         run: |
           mkdir -p release-assets
-          docker save -o release-assets/moekoemusic-${{ github.sha }}.tar moekoemusic:latest
-          echo "IMAGE_FILENAME=moekoemusic-${{ github.sha }}.tar" >> $GITHUB_ENV
+          docker save -o release-assets/moekoemusic-${{ env.CURRENT_DATE }}.tar moekoemusic:latest
+          echo "IMAGE_FILENAME=moekoemusic-${{ env.CURRENT_DATE }}.tar" >> $GITHUB_ENV
 
       - name: Create Release and Upload Asset
         uses: actions/github-script@v6
@@ -52,8 +58,9 @@ jobs:
             const path = require('path');
             const assetPath = 'release-assets/${{ env.IMAGE_FILENAME }}';
             const assetName = '${{ env.IMAGE_FILENAME }}';
-            const tagName = 'image-${{ github.sha }}';
-            const releaseName = 'Docker Image ${{ github.sha }}';
+            const currentDate = '${{ env.CURRENT_DATE }}';
+            const tagName = 'img-${currentDate}';
+            const releaseName = 'Docker Image ${currentDate}';
             const commitSha = '${{ github.sha }}';
             
             // Check if tag already exists
