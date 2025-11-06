@@ -43,25 +43,81 @@ jobs:
           docker save -o release-assets/moekoemusic-${{ github.sha }}.tar moekoemusic:latest
           echo "IMAGE_FILENAME=moekoemusic-${{ github.sha }}.tar" >> $GITHUB_ENV
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release and Upload Asset
+        uses: actions/github-script@v6
         with:
-          tag_name: image-${{ github.sha }}
-          release_name: Docker Image ${{ github.sha }}
-          body: |
-            Docker image for commit ${{ github.sha }}
-          draft: false
-          prerelease: false
-
-      - name: Upload Docker image to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release-assets/${{ env.IMAGE_FILENAME }}
-          asset_name: ${{ env.IMAGE_FILENAME }}
-          asset_content_type: application/x-tar
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const assetPath = 'release-assets/${{ env.IMAGE_FILENAME }}';
+            const assetName = '${{ env.IMAGE_FILENAME }}';
+            const tagName = 'image-${{ github.sha }}';
+            const releaseName = 'Docker Image ${{ github.sha }}';
+            const commitSha = '${{ github.sha }}';
+            
+            // Check if tag already exists
+            let tagExists = false;
+            try {
+              await github.rest.git.getRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/${tagName}`
+              });
+              tagExists = true;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            
+            // Create tag if it doesn't exist
+            if (!tagExists) {
+              await github.rest.git.createRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `refs/tags/${tagName}`,
+                sha: commitSha
+              });
+            }
+            
+            // Check if release already exists
+            let release;
+            try {
+              const existingReleases = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              release = existingReleases.data.find(r => r.tag_name === tagName);
+            } catch (error) {
+              console.error('Error checking existing releases:', error);
+            }
+            
+            // Create release if it doesn't exist
+            if (!release) {
+              release = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tagName,
+                name: releaseName,
+                body: `Docker image for commit ${commitSha}`,
+                draft: false,
+                prerelease: false
+              });
+            }
+            
+            // Upload asset
+            const assetContent = fs.readFileSync(assetPath);
+            const assetSize = fs.statSync(assetPath).size;
+            
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id,
+              name: assetName,
+              data: assetContent,
+              headers: {
+                'content-type': 'application/x-tar',
+                'content-length': assetSize
+              }
+            });
+            
+            console.log('Release created and asset uploaded successfully!')
