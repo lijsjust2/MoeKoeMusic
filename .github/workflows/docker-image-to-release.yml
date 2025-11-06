@@ -34,14 +34,28 @@ jobs:
             type=ref,event=tag
             type=sha,prefix={{sha}}-
 
-      - name: Build Docker image for multiple architectures
+      - name: Build Docker image for amd64 architecture
         uses: docker/build-push-action@v4
         with:
           context: .
           push: false
           load: true
-          platforms: linux/amd64,linux/arm64
-          tags: moekoemusic:latest
+          platforms: linux/amd64
+          tags: moekoemusic:latest-amd64
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Use QEMU for cross-platform builds
+          builder: ${{ steps.buildx.outputs.name }}
+
+      - name: Build Docker image for arm64 architecture
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          load: true
+          platforms: linux/arm64
+          tags: moekoemusic:latest-arm64
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -54,25 +68,36 @@ jobs:
           CURRENT_DATE=$(date +'%Y%m%d%H%M')
           echo "CURRENT_DATE=$CURRENT_DATE" >> $GITHUB_ENV
 
-      - name: Save Docker image as tar
+      - name: Save Docker images as tar files
         run: |
           mkdir -p release-assets
-          docker save -o release-assets/moekoemusic-${{ env.CURRENT_DATE }}.tar moekoemusic:latest
-          echo "IMAGE_FILENAME=moekoemusic-${{ env.CURRENT_DATE }}.tar" >> $GITHUB_ENV
+          docker save -o release-assets/moekoemusic-${{ env.CURRENT_DATE }}-amd64.tar moekoemusic:latest-amd64
+          docker save -o release-assets/moekoemusic-${{ env.CURRENT_DATE }}-arm64.tar moekoemusic:latest-arm64
+          echo "IMAGE_FILENAME_AMD64=moekoemusic-${{ env.CURRENT_DATE }}-amd64.tar" >> $GITHUB_ENV
+          echo "IMAGE_FILENAME_ARM64=moekoemusic-${{ env.CURRENT_DATE }}-arm64.tar" >> $GITHUB_ENV
 
-      - name: Create Release and Upload Asset
+      - name: Create Release and Upload Assets
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const path = require('path');
-            const assetPath = 'release-assets/${{ env.IMAGE_FILENAME }}';
-            const assetName = '${{ env.IMAGE_FILENAME }}';
             const currentDate = '${{ env.CURRENT_DATE }}';
             const tagName = `img-${currentDate}`;
             const releaseName = `Docker Image ${currentDate}`;
             const commitSha = '${{ github.sha }}';
+            
+            // 定义镜像文件信息
+            const assets = [
+              {
+                path: 'release-assets/${{ env.IMAGE_FILENAME_AMD64 }}',
+                name: '${{ env.IMAGE_FILENAME_AMD64 }}'
+              },
+              {
+                path: 'release-assets/${{ env.IMAGE_FILENAME_ARM64 }}',
+                name: '${{ env.IMAGE_FILENAME_ARM64 }}'
+              }
+            ];
             
             // Check if tag already exists
             let tagExists = false;
@@ -116,26 +141,35 @@ jobs:
                 repo: context.repo.repo,
                 tag_name: tagName,
                 name: releaseName,
-                body: `Docker image for commit ${commitSha}`,
+                body: `Docker images for commit ${commitSha}`,
                 draft: false,
                 prerelease: false
               });
             }
             
-            // Upload asset
-            const assetContent = fs.readFileSync(assetPath);
-            const assetSize = fs.statSync(assetPath).size;
-            
-            await github.rest.repos.uploadReleaseAsset({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: release.data.id,
-              name: assetName,
-              data: assetContent,
-              headers: {
-                'content-type': 'application/x-tar',
-                'content-length': assetSize
+            // Upload all assets
+            for (const asset of assets) {
+              console.log(`Uploading ${asset.name}...`);
+              const assetContent = fs.readFileSync(asset.path);
+              const assetSize = fs.statSync(asset.path).size;
+              
+              try {
+                await github.rest.repos.uploadReleaseAsset({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: release.data.id,
+                  name: asset.name,
+                  data: assetContent,
+                  headers: {
+                    'content-type': 'application/x-tar',
+                    'content-length': assetSize
+                  }
+                });
+                console.log(`${asset.name} uploaded successfully!`);
+              } catch (error) {
+                console.error(`Error uploading ${asset.name}:`, error);
+                throw error;
               }
-            });
+            }
             
-            console.log('Release created and asset uploaded successfully!')
+            console.log('All assets uploaded successfully!')
