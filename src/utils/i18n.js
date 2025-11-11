@@ -10,12 +10,15 @@ const messages = {
 const getBrowserLocale = () => 'zh-CN';
 
 // 默认使用中文，同时保留用户设置的优先级
-const defaultLocale = JSON.parse(localStorage.getItem('settings'))?.['language'] || 'zh-CN';
+try {
+  var defaultLocale = JSON.parse(localStorage.getItem('settings'))?.['language'] || 'zh-CN';
+} catch (e) {
+  var defaultLocale = 'zh-CN';
+}
 
 const i18n = createI18n({
   locale: defaultLocale,
   fallbackLocale: 'zh-CN',
-
   messages,
 });
 
