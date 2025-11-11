@@ -34,7 +34,7 @@ const routes = [
             { path: '/search', name: 'Search', component: Search },
             { path: '/ranking', name: 'Ranking', component: Ranking },
             { path: '/CloudDrive', name: 'CloudDrive', component: CloudDrive },
-            { path: '/albumSongs', name: 'AlbumSongs', component: AlbumSongs },
+              { path: '/albumSongs', name: 'AlbumSongs', component: AlbumSongs },
         ],
     },
     { path: '/lyrics', name: 'Lyrics', component: Lyrics },
