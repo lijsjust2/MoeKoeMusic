@@ -25,7 +25,12 @@ const getBaseURL = () => {
         console.error('检查设置出错:', e);
     }
     
-    // 优先返回本地API地址
+    // 在生产环境使用相对路径，适配Nginx代理
+    if (import.meta.env.PROD) {
+        return '/api';
+    }
+    
+    // 开发环境返回本地API地址
     return localAPI;
 };
 

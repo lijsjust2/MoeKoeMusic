@@ -6,7 +6,7 @@
     "install-all": "npm install && cd api && npm install",
     "serve": "vite",
     "build": "vite build",
-    "build:docker": "cross-env VITE_APP_API_URL=/api vite build",
+    "build:docker": "vite build --mode production",
     "preview": "vite preview",
     "api": "node api/app.js"
   },
