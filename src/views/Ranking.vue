@@ -19,48 +19,33 @@
                 <div class="rank-header">
                     <div class="rank-cover">
                         <img :src="$getCover(rank.imgurl, 640)">
+                        <div class="rank-play-btn" @click.stop="handlePlayClick($event, rank.songs)">
+                            <i class="fas fa-play"></i>
+                        </div>
                     </div>
                     <div class="rank-info">
                         <h2 class="rank-title" :style="{ color: rank.album_cover_color }">{{ rank.rankname }}</h2>
                         <span class="rank-update">{{ formatIntro(rank.intro) }}</span>
                     </div>
-                    <div class="rank-play-btn" @click.stop="handlePlayClick($event, rank.songs)">
-                        <i class="fas fa-play"></i>
-                    </div>
                 </div>
-                <div class="song-list" @scroll="handleScroll($event, rank.rankid)">
-                    <div class="song-item" v-for="(song, sIndex) in rank.songs" :key="sIndex" @click="props.playerControl.addSongToQueue(song.deprecated.hash, song.songname, $getCover(song.trans_param.union_cover, 480), song.author_name)">
-                        <div class="song-rank">
+                <div class="song-list">
+                    <div class="song-item" v-for="(song, sIndex) in rank.songs" :key="sIndex" 
+                         @click="props.playerControl.addSongToQueue(song.deprecated.hash, song.songname, $getCover(song.trans_param.union_cover, 480), song.author_name)">
+                        <div class="col-index">
                             <span class="song-index" :class="{'top-three': sIndex < 3}">{{ sIndex + 1 }}</span>
                         </div>
-                        <div class="song-cover">
-                            <img :src="$getCover(song.trans_param.union_cover, 120)">
+                        <div class="col-cover">
+                            <img :src="$getCover(song.trans_param.union_cover, 120)" :alt="song.songname">
                             <div class="hover-play">
                                 <i class="fas fa-play"></i>
                             </div>
                         </div>
-                        <div class="song-info">
-                            <div class="song-content">
-                                <div class="song-main">
-                                    <div class="song-name">{{ song.songname }}</div>
-                                    <div class="song-author">{{ song.author_name }}</div>
-                                </div>
-                                <div class="song-meta">
-                                    <span class="album">{{ song.album_name }}</span>
-                                    <span class="duration">{{ $formatMilliseconds(song.deprecated.duration) }}</span>
-                                </div>
-                            </div>
-                        </div>
+                        <div class="col-name">{{ song.songname }}</div>
+                        <div class="col-artist">{{ song.author_name }}</div>
+                        <div class="col-time">{{ $formatMilliseconds(song.deprecated.duration) }}</div>
                     </div>
                     
-                    <div v-if="rankPagination[rank.rankid]?.loading" class="loading-indicator">
-                        <div class="loading-spinner"></div>
-                        <span>加载中...</span>
-                    </div>
-                    
-                    <div v-else-if="!rankPagination[rank.rankid]?.hasMore && rank.songs?.length > 0" class="no-more-indicator">
-                        <span>已加载全部歌曲</span>
-                    </div>
+
                 </div>
             </div>
         </div>
@@ -74,8 +59,20 @@ import { get } from '../utils/request';
 const allRanks = ref([]);
 const displayedRanks = ref([]);
 const selectedRankIds = ref([]);
-const pagesize = 30;
-const rankPagination = ref({});
+
+// 要保留的榜单名称列表
+const preservedRanks = [
+    'TOP500',
+    '新歌榜',
+    '内地榜',
+    '香港地区榜',
+    '台湾地区榜',
+    '欧美金曲榜',
+    '飙升榜',
+    '80后热歌榜',
+    '00后热歌版'
+];
+
 
 const props = defineProps({
     playerControl: Object
@@ -85,48 +82,23 @@ const saveSelectedRanks = () => {
     localStorage.setItem('selectedRankIds', JSON.stringify(selectedRankIds.value));
 };
 
-const initRankPagination = (rankId) => {
-    if (!rankPagination.value[rankId]) {
-        rankPagination.value[rankId] = {
-            currentPage: 1,
-            loading: false,
-            hasMore: true
-        };
-    }
-};
+
 
 // 加载榜单歌曲数据
-const loadRankSongs = async (rankId, page = 1, append = false) => {
-    const pagination = rankPagination.value[rankId];
-    if (pagination.loading) return;
-    
-    pagination.loading = true;
-    
+const loadRankSongs = async (rankId) => {
     try {
-        const songsResponse = await get(`/rank/audio?rankid=${rankId}&page=${page}&pagesize=${pagesize}`);
+        // 一次性加载所有歌曲，不使用分页
+        const songsResponse = await get(`/rank/audio?rankid=${rankId}&page=1&pagesize=100`);
         if (songsResponse.status === 1) {
-            const newSongs = songsResponse.data.songlist || [];
+            const songs = songsResponse.data.songlist || [];
             const rank = displayedRanks.value.find(r => r.rankid === rankId);
             
             if (rank) {
-                if (append) {
-                    rank.songs = [...(rank.songs || []), ...newSongs];
-                } else {
-                    rank.songs = newSongs;
-                }
+                rank.songs = songs;
             }
-            
-            // 如果返回的歌曲数量少于pagesize，说明没有更多数据了
-            if (newSongs.length < pagesize) {
-                pagination.hasMore = false;
-            }
-            
-            pagination.currentPage = page;
         }
     } catch (error) {
         console.error('加载榜单歌曲失败:', error);
-    } finally {
-        pagination.loading = false;
     }
 };
 
@@ -136,9 +108,8 @@ const loadSelectedRanks = async (rankList, rankIds) => {
         const rank = rankList.find(r => r.rankid === rankId);
         if (rank) {
             selectedRankIds.value.push(rank.rankid);
-            initRankPagination(rank.rankid);
             displayedRanks.value.push(rank);
-            await loadRankSongs(rank.rankid, 1, false);
+            await loadRankSongs(rank.rankid);
         }
     }
 };
@@ -149,9 +120,8 @@ const loadRandomRanks = async (rankList, count = 1) => {
     
     for (const rank of randomRanks) {
         selectedRankIds.value.push(rank.rankid);
-        initRankPagination(rank.rankid);
         displayedRanks.value.push(rank);
-        await loadRankSongs(rank.rankid, 1, false);
+        await loadRankSongs(rank.rankid);
     }
     saveSelectedRanks();
 };
@@ -162,15 +132,11 @@ const toggleRank = async (rank) => {
     
     if (index === -1) {
         // 单选模式：先清空之前的选择
-        selectedRankIds.value.forEach(id => {
-            delete rankPagination.value[id];
-        });
         
         // 清空并添加新选择的榜单
         selectedRankIds.value = [rank.rankid];
-        initRankPagination(rank.rankid);
         displayedRanks.value = [rank];
-        await loadRankSongs(rank.rankid, 1, false);
+        await loadRankSongs(rank.rankid);
     }
     saveSelectedRanks();
 };
@@ -201,25 +167,7 @@ const playRankSongs = (songs) => {
     }
 };
 
-// 处理滚动事件，实现无限滚动
-const handleScroll = (event, rankId) => {
-    const element = event.target;
-    const pagination = rankPagination.value[rankId];
-    
-    if (!pagination || pagination.loading || !pagination.hasMore) {
-        return;
-    }
-    
-    // 检查是否滚动到底部附近（距离底部50px时开始加载）
-    const scrollTop = element.scrollTop;
-    const scrollHeight = element.scrollHeight;
-    const clientHeight = element.clientHeight;
-    
-    if (scrollTop + clientHeight >= scrollHeight - 50) {
-        const nextPage = pagination.currentPage + 1;
-        loadRankSongs(rankId, nextPage, true);
-    }
-};
+
 
 // 处理播放按钮点击
 const handlePlayClick = (event, songs) => {
@@ -252,16 +200,27 @@ const handlePlayClick = (event, songs) => {
 onMounted(async () => {
     const response = await get('/rank/list');
     if (response.status === 1) {
-        allRanks.value = response.data.info;
+        // 只保留指定的榜单
+        allRanks.value = response.data.info.filter(rank => 
+            preservedRanks.includes(rank.rankname)
+        );
         
-        const savedRankIds = localStorage.getItem('selectedRankIds');
-        if (savedRankIds) {
-            const rankIds = JSON.parse(savedRankIds);
-            // 单选模式：只加载第一个保存的榜单
-            await loadSelectedRanks(allRanks.value, [rankIds[0]]);
-        } else {
-            await loadRandomRanks(allRanks.value, 1);
+        // 找到TOP500榜单
+        const top500 = allRanks.value.find(rank => rank.rankname === 'TOP500');
+        
+        if (top500) {
+            // 默认选中TOP500榜单
+            selectedRankIds.value = [top500.rankid];
+            displayedRanks.value = [top500];
+            await loadRankSongs(top500.rankid);
+        } else if (allRanks.value.length > 0) {
+            // 如果没有找到TOP500，则选择第一个可用的榜单
+            selectedRankIds.value = [allRanks.value[0].rankid];
+            displayedRanks.value = [allRanks.value[0]];
+            await loadRankSongs(allRanks.value[0].rankid);
         }
+        
+        saveSelectedRanks();
     }
 });
 </script>
@@ -272,7 +231,8 @@ onMounted(async () => {
     flex-direction: column;
     gap: 20px;
     padding: 20px;
-    max-width: 1400px;
+    width: 100%;
+    max-width: none;
     margin: 0 auto;
 }
 
@@ -281,9 +241,7 @@ onMounted(async () => {
     flex-wrap: wrap;
     gap: 12px;
     padding: 16px;
-    background: #ffffff;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    /* 移除了多余的视觉图层效果 */
 }
 
 .rank-chip {
@@ -307,29 +265,27 @@ onMounted(async () => {
 }
 
 .ranking-list {
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 20px;
-    padding: 20px;
-    justify-items: center;
+    padding: 0;
+    align-items: center;
+    width: 100%;
 }
 
 .ranking-item {
-    background: #ffffff;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s ease;
-    height: 600px;
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    max-width: 800px;
-}
+        transition: transform 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        max-width: 100%;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
 
 .ranking-item:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
 
 .rank-header {
@@ -343,9 +299,9 @@ onMounted(async () => {
 .rank-cover {
     width: 100px;
     height: 100px;
-    border-radius: 12px;
+    position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
 }
 
 .rank-cover img {
@@ -377,23 +333,24 @@ onMounted(async () => {
 
 .rank-play-btn {
     position: absolute;
-    top: 20px;
-    right: 20px;
+    bottom: 10px;
+    right: 10px;
     width: 40px;
     height: 40px;
+    background-color: rgba(0, 0, 0, 0.5);
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.9);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
+    opacity: 0.8;
 }
 
 .rank-play-btn:hover {
     transform: scale(1.1);
     background: var(--primary-color);
+    opacity: 1;
 }
 
 .rank-play-btn:hover i {
@@ -407,29 +364,73 @@ onMounted(async () => {
 }
 
 .song-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0 12px;
+    padding: 0;
+    margin-top: 0;
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
 }
 
+/* 歌曲项样式 */
 .song-item {
     display: flex;
     align-items: center;
-    padding: 12px 8px;
-    border-radius: 8px;
+    padding: 12px 16px;
     transition: all 0.2s ease;
     cursor: pointer;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.song-item:last-child {
+    border-bottom: none;
 }
 
 .song-item:hover {
     background: #f8f9fa;
 }
 
-.song-rank {
-    width: 40px;
+/* 各列样式 */
+.col-index {
+    width: 20px;
+    height: 20px;
     text-align: center;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
 }
 
+.col-cover {
+    width: 48px;
+    height: 48px;
+    margin: 0 16px;
+    flex-shrink: 0;
+}
+
+.col-name {
+    flex: 2;
+    min-width: 0;
+    padding-right: 12px;
+}
+
+.col-artist {
+    flex: 1.5;
+    min-width: 0;
+    padding-right: 12px;
+}
+
+
+
+.col-time {
+    width: 80px;
+    text-align: right;
+    color: #999;
+    flex-shrink: 0;
+}
+
+/* 序号样式 */
 .song-index {
     font-size: 16px;
     font-weight: 500;
@@ -444,21 +445,22 @@ onMounted(async () => {
     -webkit-text-fill-color: transparent;
 }
 
-.song-cover {
+/* 封面图样式 */
+.col-cover {
     position: relative;
     width: 48px;
     height: 48px;
     border-radius: 8px;
     overflow: hidden;
-    margin: 0 16px;
 }
 
-.song-cover img {
+.col-cover img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
+/* 播放按钮样式 */
 .hover-play {
     position: absolute;
     top: 0;
@@ -482,82 +484,30 @@ onMounted(async () => {
     font-size: 24px;
 }
 
-.song-info {
-    flex: 1;
-    min-width: 0;
-    padding-right: 12px;
+/* 文本样式 */
+.col-name,
+.col-artist {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.song-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-}
-
-.song-main {
-    flex: 2;
-    min-width: 0;
-    margin-right: 16px;
-}
-
-.song-name {
+.col-name {
     font-size: 14px;
     font-weight: 500;
     color: #333;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-.song-author {
+.col-artist {
     font-size: 13px;
     color: #666;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-.song-meta {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    min-width: 0;
-}
-
-.album {
-    flex: 1;
+.col-time {
     font-size: 12px;
-    color: #999;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-right: 16px;
-    text-align: right;
 }
 
-.duration {
-    font-size: 12px;
-    color: #999;
-    flex-shrink: 0;
-    min-width: 45px;
-    text-align: right;
-}
 
-/* 自定义滚动条 */
-.song-list::-webkit-scrollbar {
-    width: 6px;
-}
-
-.song-list::-webkit-scrollbar-thumb {
-    background: #ddd;
-    border-radius: 3px;
-}
-
-.song-list::-webkit-scrollbar-track {
-    background: #f5f5f5;
-}
 
 .loading-indicator {
     display: flex;
@@ -596,15 +546,13 @@ onMounted(async () => {
 
 @media (max-width: 1200px) {
     .ranking-list {
-        grid-template-columns: 1fr;
         gap: 15px;
-        padding: 15px;
-        justify-items: center;
+        padding: 0;
+        align-items: center;
     }
     
     .ranking-item {
-        height: 500px;
-        min-height: 500px;
+        max-width: 100%;
     }
     
     .rank-header {
@@ -622,6 +570,50 @@ onMounted(async () => {
     
     .rank-update {
         font-size: 12px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .ranking-list {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        padding: 15px;
+        justify-items: center;
+    }
+    
+    .ranking-item {
+        /* 移除固定高度 */
+    }
+    
+    .rank-header {
+        padding: 15px;
+    }
+    
+    .rank-cover {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .rank-title {
+        font-size: 20px;
+    }
+    
+    .rank-update {
+        font-size: 12px;
+    }
+    
+    .col-index {
+        width: 50px;
+    }
+    
+    .col-cover {
+        width: 40px;
+        height: 40px;
+        margin: 0 12px;
+    }
+    
+    .col-time {
+        width: 70px;
     }
 }
 
@@ -643,17 +635,12 @@ onMounted(async () => {
     
     .ranking-list {
         gap: 10px;
-        padding: 10px;
-        grid-template-columns: 1fr;
-        justify-items: center;
+        padding: 0;
+        align-items: center;
     }
     
     .ranking-item {
         max-width: 100%;
-    }
-    
-    .ranking-item {
-        height: 400px;
     }
     
     .rank-cover {
@@ -670,26 +657,27 @@ onMounted(async () => {
         margin: 0 0 4px 0;
     }
     
-    .song-cover {
-        width: 40px;
-        height: 40px;
-        margin: 0 10px;
+    .song-item {
+        padding: 10px 12px;
     }
     
-    .song-rank {
-        width: 30px;
+    .col-index {
+        width: 20px;
     }
     
-    .song-name {
-        font-size: 13px;
+    .col-cover {
+        width: 36px;
+        height: 36px;
+        margin: 0 8px;
     }
     
-    .song-author {
+    .col-time {
+        width: 50px;
+    }
+    
+    .col-name,
+    .col-artist {
         font-size: 12px;
-    }
-    
-    .album {
-        display: none;
     }
 }
 

@@ -74,6 +74,15 @@
                                 <p class="result-publish-date">{{ result.PublishDate }}</p>
                             </div>
                         </div>
+                        <!-- 添加操作列 -->
+                        <div class="result-actions">
+                            <button class="action-btn add-to-playlist" @click.stop="showAddToPlaylistMenu($event, result)" title="添加到歌单">
+                                <i class="fas fa-plus-circle"></i>
+                            </button>
+                            <button class="action-btn download" @click.stop="downloadSong(result)" title="下载">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
                     </li>
                 </ul>
                 
@@ -102,15 +111,37 @@
         </div>
     </div>
     <ContextMenu ref="contextMenuRef" :playerControl="playerControl" />
+    
+    <!-- 歌单选择菜单 -->
+    <div v-if="showPlaylistMenu" 
+         :style="{ top: `${menuPosition.y}px`, left: `${menuPosition.x}px` }" 
+         class="playlist-menu">
+      <ul>
+        <li v-for="playlist in playlists" :key="playlist.listid"
+            @click="addToPlaylist(playlist.listid)">
+          {{ playlist.name }}
+        </li>
+      </ul>
+    </div>
+  
+  <!-- 音质选择模态框 -->
+  <QualitySelectModal 
+    :is-open="showQualityModal" 
+    :song="currentDownloadSong"
+    @close="showQualityModal = false"
+    @quality-selected="handleQualitySelected"
+  />
 </template>
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed, onBeforeUnmount } from 'vue';
 import ContextMenu from '../components/ContextMenu.vue';
 import AlbumGrid from '../components/AlbumGrid.vue';
 import PlaylistGrid from '../components/PlaylistGrid.vue';
 import ArtistGrid from '../components/ArtistGrid.vue';
+import QualitySelectModal from '../components/QualitySelectModal.vue';
 import { get } from '../utils/request';
 import { useRoute, useRouter } from 'vue-router';
+import { MoeAuthStore } from '../stores/store';
 const route = useRoute();
 const router = useRouter();
 const searchQuery = ref(route.query.q || '');
@@ -121,6 +152,13 @@ const pageSize = ref(30);
 const totalPages = ref(1);
 const contextMenuRef = ref(null);
 const isLoading = ref(false);
+const MoeAuth = MoeAuthStore();
+const showPlaylistMenu = ref(false);
+const menuPosition = ref({ x: 0, y: 0 });
+const playlists = ref([]);
+const currentSong = ref(null);
+const showQualityModal = ref(false);
+const currentDownloadSong = ref(null);
 
 const searchTabs = [
     { type: 'song', name: '单曲' },
@@ -154,21 +192,170 @@ const showContextMenu = (event, song) => {
 };
 
 onMounted(() => {
+    // 初始化时从URL参数获取所有状态
     if (route.query.type) {
         searchType.value = route.query.type;
     }
-    performSearch();
+    if (route.query.page) {
+        currentPage.value = parseInt(route.query.page) || 1;
+    }
+    // 只有当有搜索词时才执行搜索
+    if (searchQuery.value) {
+        performSearch();
+    }
+    
+    // 添加点击外部关闭歌单菜单的监听
+    document.addEventListener('click', handleClickOutside);
 });
 
-watch(() => route.query.q, (newQuery) => {
-    currentPage.value = 1;
-    searchQuery.value = newQuery;
-    performSearch();
+onBeforeUnmount(() => {
+    // 移除点击外部关闭歌单菜单的监听
+    document.removeEventListener('click', handleClickOutside);
 });
+
+// 监听路由参数变化，恢复搜索状态
+watch(() => [route.query.q, route.query.type, route.query.page], ([newQuery, newType, newPage]) => {
+    if (newQuery !== undefined) {
+        searchQuery.value = newQuery || '';
+    }
+    if (newType) {
+        searchType.value = newType;
+    }
+    if (newPage) {
+        currentPage.value = parseInt(newPage) || 1;
+    }
+    // 只有当有搜索词时才执行搜索，避免初始加载时的空搜索
+    if (searchQuery.value) {
+        performSearch();
+    }
+}, { deep: true });
 
 const props = defineProps({
     playerControl: Object
 });
+
+// 添加到歌单功能 - 显示歌单选择菜单
+const showAddToPlaylistMenu = async (event, song) => {
+  event.stopPropagation();
+  
+  if (!MoeAuth.isAuthenticated) {
+    $message.warning('请先登录');
+    return;
+  }
+  
+  currentSong.value = song;
+  menuPosition.value = { x: event.clientX, y: event.clientY };
+  
+  try {
+    const playlistResponse = await get('/user/playlist', { pagesize: 100 });
+    if (playlistResponse.status === 1) {
+      // 过滤歌单列表，移除默认收藏、我喜欢和本地这些特殊选项
+      playlists.value = playlistResponse.data.info.filter(
+        playlist => {
+          // 确保是当前用户创建的歌单
+          const isUserPlaylist = playlist.list_create_userid === MoeAuth.UserInfo.userid;
+          // 排除特定名称的歌单
+          const isSpecialPlaylist = ['默认收藏', '我喜欢', '本地'].includes(playlist.name);
+          // 返回既属于用户创建又不是特殊歌单的项目
+          return isUserPlaylist && !isSpecialPlaylist;
+        }
+      );
+      showPlaylistMenu.value = true;
+    }
+  } catch (error) {
+    $message.error('获取歌单失败');
+  }
+};
+
+// 实际添加歌曲到指定歌单
+const addToPlaylist = async (listid) => {
+  if (!currentSong.value) return;
+  
+  try {
+    await get(`/playlist/tracks/add?listid=${listid}&data=${encodeURIComponent(
+      currentSong.value.OriSongName?.replace(',', '') || currentSong.value.SongName?.replace(',', '')
+    )}|${currentSong.value.FileHash || currentSong.value.hash}`);
+    showPlaylistMenu.value = false;
+    $message.success('成功添加到歌单');
+  } catch (error) {
+    $message.error('添加到歌单失败');
+  }
+};
+
+// 点击其他区域关闭歌单选择菜单
+const handleClickOutside = () => {
+  showPlaylistMenu.value = false;
+};
+
+// 打开音质选择模态框
+const downloadSong = (song) => {
+  // 准备下载的歌曲数据
+  currentDownloadSong.value = {
+    name: song.SongName || song.name || song.FileName,
+    author: song.SingerName || song.author || song.singer,
+    hash: song.FileHash || song.hash,
+    isCloud: false,
+    isLocal: false
+  };
+  
+  // 显示音质选择模态框
+  showQualityModal.value = true;
+};
+
+// 处理音质选择并下载
+const handleQualitySelected = async (qualityInfo) => {
+  if (!qualityInfo || !qualityInfo.url) {
+    console.error('获取音乐URL失败');
+    window.$message.error('获取音乐URL失败');
+    return;
+  }
+  
+  try {
+    console.log(`开始下载歌曲 (${qualityInfo.label}):`, currentDownloadSong.value.name);
+    
+    // 使用fetch API获取文件blob，确保强制下载而不是播放
+    const response = await fetch(qualityInfo.url);
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+    
+    const blob = await response.blob();
+    console.log('成功获取文件blob，大小:', blob.size);
+    
+    // 创建blob URL
+    const blobUrl = URL.createObjectURL(blob);
+    
+    // 创建下载链接
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    
+    // 设置文件名，包含音质信息，避免特殊字符
+    let fileName = `${currentDownloadSong.value.name} - ${currentDownloadSong.value.author} (${qualityInfo.label}).${qualityInfo.quality === 'flac' ? 'flac' : 'mp3'}`;
+    fileName = fileName.replace(/[<>"/\\|?*:]/g, '_'); // 替换Windows文件名中的非法字符
+    
+    link.download = fileName;
+    link.target = '_blank'; // 确保在新标签中打开，不会干扰当前页面
+    
+    // 触发下载
+    document.body.appendChild(link);
+    
+    // 使用setTimeout确保DOM操作完成
+    setTimeout(() => {
+      link.click();
+      // 清理
+      document.body.removeChild(link);
+      // 延迟释放blob URL，确保下载完成
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+    }, 0);
+    
+    console.log('歌曲下载已触发:', fileName);
+    window.$message.success('下载已开始');
+    
+  } catch (error) {
+    console.error('下载歌曲失败:', error);
+    window.$message.error('下载失败');
+  }
+};
 
 const playSong = (hash, name, img, author) => {
     props.playerControl.addSongToQueue(hash, name, img, author);
@@ -176,6 +363,16 @@ const playSong = (hash, name, img, author) => {
 
 const performSearch = async () => {
     if (!searchQuery.value) return;
+    
+    // 更新URL参数，这样点击返回按钮时可以恢复搜索状态
+    router.push({
+        query: {
+            q: searchQuery.value,
+            type: searchType.value,
+            page: currentPage.value
+        }
+    });
+    
     isLoading.value = true;
     try {
         const response = await get(`/search?keywords=${encodeURIComponent(searchQuery.value)}&page=${currentPage.value}&pagesize=${pageSize.value}&type=${searchType.value}`)
@@ -250,9 +447,17 @@ const goToPage = (page) => {
 };
 
 const handleAlbumClick = (album) => {
-    window.$modal.alert('暂不支持查看');
-    // console.log('Album clicked:', album);
-    // router.push(`/album/${album.albumid}`);
+    // 尝试使用不同可能的专辑ID属性名
+    const albumId = album.id || album.albumid || album.album_id;
+    if (albumId) {
+        router.push({
+            path: '/albumSongs',
+            query: { id: albumId }
+        })
+    } else {
+        console.error('找不到专辑ID:', album);
+        window.$modal.alert('无法获取专辑信息');
+    }
 };
 
 const handlePlaylistClick = (playlist) => {
@@ -289,7 +494,6 @@ const handleArtistClick = (artist) => {
     padding: 12px 20px;
     font-size: 16px;
     border: 2px solid #e0e0e0;
-    border-radius: 25px;
     outline: none;
     transition: border-color 0.3s;
 }
@@ -303,7 +507,6 @@ const handleArtistClick = (artist) => {
     background-color: var(--primary-color);
     color: white;
     border: none;
-    border-radius: 25px;
     font-size: 16px;
     cursor: pointer;
     transition: background-color 0.3s;
@@ -328,7 +531,6 @@ const handleArtistClick = (artist) => {
     color: #666;
     position: relative;
     transition: all 0.3s;
-    border-radius: 5px 5px 0 0;
 }
 
 .tab-button:hover {
@@ -353,12 +555,11 @@ const handleArtistClick = (artist) => {
 .result-item {
     display: flex;
     align-items: center;
-    padding: 10px;
+    padding: 5px;
     border-bottom: 1px solid #f0f0f0;
     transition: background-color 0.3s;
     cursor: pointer;
-    border-radius: 5px;
-    gap: 10px;
+    gap: 5px;
 }
 
 .result-item:hover {
@@ -368,7 +569,6 @@ const handleArtistClick = (artist) => {
 .result-item img {
     width: 50px;
     height: 50px;
-    border-radius: 5px;
     margin-right: 10px;
 }
 
@@ -382,9 +582,72 @@ const handleArtistClick = (artist) => {
 .result-meta {
     display: flex;
     margin-left: auto;
-    min-width: 120px;
+    min-width: 10px;
     justify-content: flex-end;
-    padding-right: 20px;
+    padding-right: 5px;
+}
+
+/* 操作列样式 */
+.result-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+.action-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: #666;
+    font-size: 18px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.action-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--primary-color);
+}
+
+.action-btn.add-to-playlist:hover {
+    color: var(--primary-color);
+}
+
+.action-btn.download:hover {
+    color: #52c41a;
+}
+
+.playlist-menu {
+    position: fixed;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    min-width: 180px;
+}
+
+.playlist-menu ul {
+    list-style: none;
+    padding: 5px 0;
+    margin: 0;
+}
+
+.playlist-menu li {
+    padding: 8px 14px;
+    cursor: pointer;
+    border-radius: 10px;
+}
+
+.playlist-menu li:hover {
+    background-color: #f5f5f5;
 }
 
 .meta-column {
@@ -448,7 +711,6 @@ const handleArtistClick = (artist) => {
     padding: 8px 12px;
     background-color: #f5f5f5;
     border: 1px solid #ddd;
-    border-radius: 4px;
     cursor: pointer;
     color: #333;
     min-width: 40px;
@@ -471,7 +733,6 @@ const handleArtistClick = (artist) => {
     background-color: white;
     color: #333;
     border: 1px solid #ddd;
-    border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s;
 }
@@ -527,14 +788,12 @@ const handleArtistClick = (artist) => {
 .skeleton-cover, .skeleton-avatar {
     width: 50px;
     height: 50px;
-    border-radius: 5px;
     background: linear-gradient(to right, #f0f0f0 8%, #e0e0e0 18%, #f0f0f0 33%);
     background-size: 800px 104px;
     animation: shimmer 1.5s linear infinite forwards;
 }
 
 .skeleton-avatar {
-    border-radius: 50%;
     width: 100px;
     height: 100px;
     margin: 0 auto 10px;
@@ -557,7 +816,6 @@ const handleArtistClick = (artist) => {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    min-width: 120px;
     align-items: flex-end;
 }
 
@@ -566,7 +824,6 @@ const handleArtistClick = (artist) => {
     background: linear-gradient(to right, #f0f0f0 8%, #e0e0e0 18%, #f0f0f0 33%);
     background-size: 800px 104px;
     animation: shimmer 1.5s linear infinite forwards;
-    border-radius: 3px;
     width: 100%;
     margin-top: 5px;
 }
@@ -592,7 +849,6 @@ const handleArtistClick = (artist) => {
     align-items: center;
     padding: 15px;
     background-color: #f9f9f9;
-    border-radius: 8px;
     transition: transform 0.3s;
 }
 </style>

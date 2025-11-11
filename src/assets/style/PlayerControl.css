@@ -7,11 +7,11 @@
     border-radius: 8px;
     margin-top: 80px;
     position: relative;
-    width: 60%;
+    width: 100%;
 }
 
 #lyrics {
-    font-size: 24px;
+    font-size: 20px;
     line-height: 1.8;
     white-space: pre-wrap;
     color: #666;
@@ -302,9 +302,10 @@
     backdrop-filter: blur(18px);
     color: white;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     padding: 20px;
     background: #1616169c;
+    min-height: 100vh;
 }
 
 .close-btn {
@@ -319,18 +320,31 @@
     width: 100%;
 }
 
+/* 上下布局 - 歌词容器在上 */
+.lyrics-container-top {
+    flex: 1;
+    width: 100%;
+    max-height: 60vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 20px;
+}
+
+/* 上下布局 - 左侧信息在下 */
 .left-section {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 40%;
-    margin-top: 135px;
-    margin-left: 20px;
+    width: 100%;
+    margin-top: 20px;
+    margin-left: 0;
+    padding-bottom: 0px;
 }
 
 .album-art-large img {
-    width: 400px;
-    height: 400px;
+    width: 250px;
+    height: 250px;
     border-radius: 10px;
     z-index: 9;
 }
@@ -545,7 +559,7 @@
 /* 移动端响应式设计 */
 @media (max-width: 768px) {
     .player-container {
-        padding-bottom: 10px; /* 增加底部内边距，确保在有安全区域的设备上显示完整 */
+        padding-bottom: 0px; /* 增加底部内边距，确保在有安全区域的设备上显示完整 */
     }
     
     .player-bar {
@@ -736,4 +750,51 @@
   opacity: 0.9;
   margin-top: 5px;
   color: #e3e3e3b1;
+}
+
+/* 全屏歌词界面额外控制按钮样式 */
+.lyrics-extra-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.lyrics-extra-controls .extra-btn {
+    width: 36px;
+    height: 36px;
+    margin: 0 8px;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: color 0.3s ease;
+    opacity: 0.9;
+}
+
+.lyrics-extra-controls .extra-btn:hover {
+    color: #f0f0f0;
+    opacity: 1;
+}
+
+/* 全屏歌词界面播放速度菜单样式 */
+.lyrics-extra-controls .playback-speed {
+    position: relative;
+    margin: 0 8px;
+}
+
+.lyrics-extra-controls .speed-menu {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 4px;
+    padding: 8px 0;
+    margin-bottom: 10px;
+    min-width: 80px;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }

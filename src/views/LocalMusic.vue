@@ -810,7 +810,6 @@ const getSortIconClass = (field) => {
     background-color: transparent;
     border: 1px solid var(--secondary-color);
     padding: 5px 10px;
-    border-radius: 5px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -830,7 +829,6 @@ const getSortIconClass = (field) => {
     right: -8px;
     background-color: red;
     color: white;
-    border-radius: 50%;
     width: 20px;
     height: 20px;
     display: flex;
@@ -846,8 +844,6 @@ const getSortIconClass = (field) => {
     left: 0;
     background-color: white;
     border: 1px solid #ccc;
-    border-radius: 5px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     z-index: 50;
     margin-top: 5px;
     width: 200px;
@@ -881,7 +877,6 @@ const getSortIconClass = (field) => {
     background-color: transparent;
     border: 1px solid var(--secondary-color);
     padding: 5px 10px;
-    border-radius: 5px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -904,7 +899,6 @@ const getSortIconClass = (field) => {
     width: 250px;
     padding: 8px;
     border: 1px solid var(--secondary-color);
-    border-radius: 20px;
     box-sizing: border-box;
     padding-left: 15px;
 }
@@ -931,7 +925,6 @@ const getSortIconClass = (field) => {
     align-items: center;
     padding: 10px;
     border-bottom: 1px solid #eee;
-    border-radius: 5px;
     cursor: pointer;
 }
 
@@ -994,7 +987,6 @@ const getSortIconClass = (field) => {
 .icon {
     margin-left: 5px;
     border: 1px solid;
-    border-radius: 5px;
     font-size: 10px;
     padding-left: 6px;
     padding-right: 6px;
@@ -1090,7 +1082,6 @@ const getSortIconClass = (field) => {
     border-bottom: 1px solid var(--primary-color);
     font-weight: bold;
     background-color: rgba(var(--primary-color-rgb), 0.1);
-    border-radius: 5px 5px 0 0;
 }
 
 .track-checkbox-header {
@@ -1152,7 +1143,6 @@ const getSortIconClass = (field) => {
     display: flex;
     align-items: center;
     border-bottom: 1px solid #eee;
-    border-radius: 5px;
 }
 
 .li.cover-view:hover {
@@ -1165,7 +1155,6 @@ const getSortIconClass = (field) => {
     height: 50px;
     margin-right: 15px;
     overflow: hidden;
-    border-radius: 4px;
     flex-shrink: 0;
 }
 
@@ -1293,7 +1282,6 @@ const getSortIconClass = (field) => {
     height: 40px;
     border: 4px solid #f3f3f3;
     border-top: 4px solid var(--primary-color);
-    border-radius: 50%;
     animation: spin 1s linear infinite;
     margin: 0 auto;
 }

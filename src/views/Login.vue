@@ -1,6 +1,8 @@
 <template>
     <div class="login-page">
-        <div class="login-container">
+
+        <div class="login-content">
+            <div class="login-container">
             <img src="https://www.kugou.com/yy/static/images/play/logo.png" alt="App Logo" class="logo" />
             <h2>{{ $t('deng-lu-ni-de-ku-gou-zhang-hao') }}</h2>
             <div class="logintype-menu">
@@ -149,9 +151,10 @@
                 {{ $t('login-tips') }}<b>{{ $t('tui-jian') }}</b>{{ $t('shi-yong-yan-zheng-ma-deng-lu') }}
             </p>
             <p class="register-link">
-                <a @click="openRegisterUrl('https://activity.kugou.com/getvips/v-4163b2d0/index.html')" href="#">{{ $t('zhu-ce') }}</a>
-            </p>
-        </div>
+                  <a @click="openRegisterUrl('https://activity.kugou.com/getvips/v-4163b2d0/index.html')" href="#">{{ $t('zhu-ce') }}</a>
+              </p>
+            </div>
+          </div>
     </div>
 </template>
 
@@ -169,6 +172,7 @@ const options = [t('shou-ji-hao-deng-lu'), t('you-xiang-deng-lu'), t('sao-ma-den
 const MoeAuth = MoeAuthStore();
 const router = useRouter();
 const route = useRoute();
+const showBackButton = ref(!!route.query.redirect);
 
 const emailForm = reactive({
     email: '',
@@ -249,7 +253,12 @@ const emailLogin = async () => {
         const response = await get(`/login?username=${emailForm.email}&password=${emailForm.password}`);
         if (response.status === 1) {
             MoeAuth.setData({ UserInfo: response.data });
-            router.push('/library'); // 直接跳转到"我的"页面
+            // 登录成功后跳转到之前的页面或默认的"我的"页面
+            if (route.query.redirect) {
+                router.push(route.query.redirect);
+            } else {
+                router.push('/library');
+            }
             $message.success(t('deng-lu-cheng-gong'));
         }
     } catch (error) {
@@ -311,7 +320,12 @@ const phoneLogin = async (selectedUserId = null) => {
         const response = await get(url);
         if (response.status === 1) {
             MoeAuth.setData({ UserInfo: response.data });
-            router.push('/library'); // 直接跳转到"我的"页面
+            // 登录成功后跳转到之前的页面或默认的"我的"页面
+            if (route.query.redirect) {
+                router.push(route.query.redirect);
+            } else {
+                router.push('/library');
+            }
             $message.success(t('deng-lu-cheng-gong'));
         }
     } catch (error) {
@@ -371,6 +385,15 @@ const backToLogin = () => {
     accountList.value = [];
 };
 
+// 返回上一页
+const goBack = () => {
+    if (route.query.redirect) {
+        router.push(route.query.redirect);
+    } else {
+        router.back();
+    }
+};
+
 // 检查二维码扫描状态
 const checkQrStatus = async () => {
     interval.value = setInterval(async () => {
@@ -386,7 +409,12 @@ const checkQrStatus = async () => {
                 } else if (response.data.status === 4) {
                     clearInterval(interval.value);
                     MoeAuth.setData({ UserInfo: response.data });
-                    router.push('/library'); // 直接跳转到"我的"页面
+                    // 登录成功后跳转到之前的页面或默认的"我的"页面
+                    if (route.query.redirect) {
+                        router.push(route.query.redirect);
+                    } else {
+                        router.push('/library');
+                    }
                     $message.success(t('er-wei-ma-deng-lu-cheng-gong'));
                 } else if (response.data.status === 0) {
                     clearInterval(interval.value);
@@ -404,45 +432,58 @@ const checkQrStatus = async () => {
 
 <style scoped>
 .login-page {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-header {
+  padding: 16px;
+  width: 100%;
+  background-color: var(--card-background);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.login-header .back-button {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.login-header .back-button:hover {
+  background-color: var(--primary-color-light);
+}
+
+.login-content {
+  flex: 1;
   display: flex;
   justify-content: center;
-  align-items: center;
-  position: relative;
-  margin-top: 100px;
+  padding: 20px;
 }
-
 
 .login-container {
-  background-color: #fff;
-  border-radius: 20px;
-  width: 400px;
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 420px;
+  padding: 30px;
+  background-color: #ffffff;
   text-align: center;
-  padding: 30px 25px;
   position: relative;
-  overflow: hidden;
-  z-index: 1;
-  transition: all 0.4s ease;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding-bottom: 0px;
 }
 
-.login-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background: var(--primary-color);
-  border-radius: 3px;
-}
+/* 移除顶部的彩色条 */
 
 .logo {
   width: 65px;
   margin: 0 auto 0px;
   display: block;
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
   transition: all 0.5s ease;
 }
 
@@ -456,19 +497,6 @@ h2 {
   margin-bottom: 20px;
   font-weight: 600;
   font-size: 1.4rem;
-  position: relative;
-  display: inline-block;
-}
-
-h2::after {
-  content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 30%;
-  width: 40%;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
-  border-radius: 3px;
 }
 
 .login-form {
@@ -490,7 +518,7 @@ h2::after {
 }
 
 .form-item .form-code {
-  border-radius: 10px 0 0 10px;
+  border-radius: 0;
 }
 
 .input-wrapper {
@@ -509,7 +537,6 @@ h2::after {
   line-height: 42px;
   padding: 0 14px;
   border: 1px solid #dcdfe6;
-  border-radius: 10px;
   transition: all 0.3s;
   outline: none;
   box-sizing: border-box;
@@ -519,7 +546,6 @@ h2::after {
 
 .form-input:focus {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px var(--color-box-shadow);
   background-color: #fff;
 }
 
@@ -536,7 +562,6 @@ h2::after {
   transition: all 0.2s;
   width: 20px;
   height: 20px;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -557,7 +582,6 @@ h2::after {
   background: var(--primary-color);
   color: white;
   border: none;
-  border-radius: 0 10px 10px 0;
   cursor: pointer;
   padding: 0 12px;
   white-space: nowrap;
@@ -585,7 +609,6 @@ h2::after {
 
 .append-button:hover:not(:disabled) {
   background: var(--primary-color);
-  box-shadow: 0 4px 10px var(--color-box-shadow);
 }
 
 .error-message {
@@ -611,7 +634,6 @@ h2::after {
   height: 14px;
   background-color: #f56c6c;
   color: white;
-  border-radius: 50%;
   margin-right: 6px;
   font-size: 10px;
   font-weight: bold;
@@ -623,13 +645,11 @@ h2::after {
   background: var(--primary-color);
   color: white;
   border: none;
-  border-radius: 10px;
   cursor: pointer;
   font-size: 15px;
   font-weight: 500;
   position: relative;
   transition: all 0.3s;
-  box-shadow: 0 6px 12px var(--color-box-shadow);
   overflow: hidden;
 }
 
@@ -650,13 +670,10 @@ h2::after {
 
 .primary-button:hover:not(:disabled) {
   background: var(--primary-color);
-  box-shadow: 0 8px 16px var(--color-box-shadow);
-  transform: translateY(-2px);
 }
 
 .primary-button:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 4px 8px var(--color-box-shadow);
+  /* 移除了多余的视觉图层效果 */
 }
 
 .primary-button:disabled {
@@ -670,7 +687,6 @@ h2::after {
   width: 14px;
   height: 14px;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
   border-top-color: #fff;
   animation: spin 0.8s linear infinite;
   margin-right: 6px;
@@ -696,18 +712,14 @@ h2::after {
 .qr-code {
   width: 180px;
   height: 180px;
-  border-radius: 14px;
   border: 1px solid #eaeaea;
-  padding: 10px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06);
   transition: all 0.4s;
   background-color: white;
   margin: 0 auto;
 }
 
 .qr-code:hover {
-  transform: scale(1.03);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  /* 移除了多余的视觉图层效果 */
 }
 
 .empty-container {
@@ -717,17 +729,14 @@ h2::after {
   justify-content: center;
   height: 200px;
   border: 1px solid #eaeaea;
-  border-radius: 14px;
   margin: 0 auto;
   width: 200px;
   background-color: #f9fafc;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06);
   transition: all 0.3s;
 }
 
 .empty-container:hover {
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-  transform: translateY(-3px);
+  /* 移除了多余的视觉图层效果 */
 }
 
 .empty-icon {
@@ -757,27 +766,7 @@ h2::after {
   border-top: 1px solid #ebeef5;
   padding-top: 14px;
   text-align: left;
-  background-color: #f9fafc;
   padding: 14px;
-  border-radius: 10px;
-  position: relative;
-}
-
-.disclaimer::before {
-  content: '!';
-  position: absolute;
-  top: -10px;
-  left: 20px;
-  width: 18px;
-  height: 18px;
-  background-color: var(--primary-color);
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 11px;
 }
 
 .logintype-menu {
@@ -787,10 +776,8 @@ h2::after {
 .segmented-control {
   display: flex;
   width: 100%;
-  border-radius: 12px;
   overflow: hidden;
   border: 1px solid #e4e7ed;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
   position: relative;
   z-index: 1;
 }
@@ -829,7 +816,6 @@ h2::after {
   background: var(--primary-color);
   color: white;
   font-weight: 600;
-  box-shadow: 0 4px 8px var(--color-box-shadow);
 }
 
 .segmented-button.active::after {
@@ -857,8 +843,6 @@ h2::after {
 .register-link a:hover {
   color: var(--primary-color);
   background-color: var(--color-secondary-bg-for-transparent);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px var(--color-box-shadow);
 }
 
 /* 账号选择界面样式 */
@@ -894,7 +878,6 @@ h2::after {
   align-items: center;
   padding: 12px 16px;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s;
   position: relative;
@@ -915,8 +898,6 @@ h2::after {
 .account-item:hover {
   border-color: var(--primary-color);
   background-color: var(--hover-color);
-  box-shadow: 0 4px 12px var(--color-box-shadow);
-  transform: translateY(-2px);
 }
 
 .account-item:hover::before {
@@ -924,18 +905,15 @@ h2::after {
 }
 
 .account-item:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px var(--color-box-shadow);
+  /* 移除了多余的视觉图层效果 */
 }
 
 .account-avatar {
   width: 48px;
   height: 48px;
-  border-radius: 50%;
   margin-right: 12px;
   overflow: hidden;
   flex-shrink: 0;
-  border: 2px solid var(--border-color);
   transition: all 0.3s;
 }
 
@@ -973,7 +951,6 @@ h2::after {
   background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
   color: white;
   padding: 2px 6px;
-  border-radius: 4px;
   font-weight: bold;
   font-size: 10px;
 }
@@ -982,7 +959,6 @@ h2::after {
   background: linear-gradient(45deg, var(--color-primary), var(--primary-color));
   color: white;
   padding: 2px 6px;
-  border-radius: 4px;
   font-weight: bold;
   font-size: 10px;
 }
@@ -1010,7 +986,6 @@ h2::after {
   background: var(--background-color-secondary);
   color: var(--text-color);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
@@ -1029,7 +1004,6 @@ h2::after {
   .login-container {
     width: 100%;
     padding: 25px 18px;
-    border-radius: 18px;
   }
   
   .form-input, .primary-button, .append-button {

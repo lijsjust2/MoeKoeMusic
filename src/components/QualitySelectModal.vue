@@ -74,20 +74,6 @@ const availableQualities = ref([
         desc: '128kbps',
         disabled: false,
         size: null
-    },
-    {
-        label: t('yin-zhi-piano'),
-        value: 'piano',
-        desc: '钢琴曲',
-        disabled: false,
-        size: null
-    },
-    {
-        label: t('yin-zhi-acappella'),
-        value: 'acappella',
-        desc: '纯人声',
-        disabled: false,
-        size: null
     }
 ]);
 

@@ -16,9 +16,9 @@
                 <img v-if="currentSong.img" :src="currentSong.img" alt="Album Art" />
                 <i v-else class="fas fa-music"></i>
             </div>
-            <div class="song-info" @click="toggleLyrics(currentSong.hash, currentTime)">
+            <div class="song-info" @click.stop="toggleLyrics(currentSong.hash, currentTime)">
                 <div class="song-title">{{ currentSong?.name || "MoeKoeMusic" }}</div>
-                <div class="artist">{{ currentSong?.author || "MoeJue" }}</div>
+                <div class="artist" @click.stop="goToArtistDetail(currentSong?.author_id)" style="cursor: pointer;">{{ currentSong?.author || "MoeJue" }}</div>
             </div>
             <div class="controls">
                 <button class="control-btn" @click="playSongFromQueue('previous')">
@@ -46,8 +46,7 @@
                         </div>
                     </div>
                 </div>
-                <button class="extra-btn" title="我喜欢" @click="playlistSelect.toLike()"><i
-                        class="fas fa-heart"></i></button>
+
                 <button class="extra-btn" title="收藏至" @click="playlistSelect.fetchPlaylists()"><i
                         class="fas fa-add"></i></button>
                 <button class="extra-btn" title="分享歌曲" @click="share('share?hash=' + currentSong.hash)"><i
@@ -62,7 +61,7 @@
                         <sup>1</sup>
                     </span>
                 </button>
-                <button class="extra-btn" @click="queueList.openQueue()"><i class="fas fa-list"></i></button>
+                <button class="extra-btn" @click="queueList.toggleQueue()" title="{{ $t('bo-fang-lie-biao') }}"><i class="fas fa-list"></i></button>
                 <!-- 音量控制 -->
                 <div class="volume-control" @wheel="handleVolumeScroll">
                     <i :class="isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up'" @click="toggleMute"></i>
@@ -75,9 +74,9 @@
         </div>
     </div>
 
-    <!-- 播放队列 -->
+    <!-- 播放队列 - 提高z-index确保在全屏歌词界面中可见 -->
     <QueueList :current-song="currentSong" @add-song-to-queue="onQueueSongAdd"
-        @add-cloud-music-to-queue="onQueueCloudSongAdd" @add-local-music-to-queue="onQueueLocalSongAdd" ref="queueList" />
+        @add-cloud-music-to-queue="onQueueCloudSongAdd" @add-local-music-to-queue="onQueueLocalSongAdd" ref="queueList" :style="{ zIndex: 100 }" />
     
     <!-- 音质选择模态框 -->
     <QualitySelectModal
@@ -100,13 +99,46 @@
                     <i class="fas fa-language"></i>
                 </div>
 
-                <div class="left-section">
-                    <div class="album-art-large">
-                            <img :src="currentSong?.img || './assets/images/!.png'" alt="Album Art" />
+                <!-- 歌词容器在上 -->
+                <div id="lyrics-container" class="lyrics-container-top" @wheel="handleLyricsWheel">
+                    <div v-if="lyricsData.length > 0" id="lyrics"
+                        :style="{ fontSize: lyricsFontSize, transform: `translateY(${scrollAmount ? scrollAmount + 'px' : '50%'})` }">
+                        <div class="line-group" v-for="(lineData, lineIndex) in lyricsData" :key="lineIndex">
+                            <div class="line" @click="handleLyricsClick(lineIndex)" :class="{ click: lyricsFlag, [lyricsAlign]: true }">
+                                <span v-for="(charData, charIndex) in lineData.characters" :key="charIndex" class="char"
+                                    :class="{ highlight: charData.highlighted }">
+                                    {{ charData.char }}
+                                </span>
+                            </div>
+                            <div class="line translated" :class="{ [lyricsAlign]: true }" v-show="lineData.translated && lyricsMode === 'translation'">{{ lineData.translated }}</div>
+                            <div class="line romanized" :class="{ [lyricsAlign]: true }" v-show="lineData.romanized && lyricsMode === 'romanization'">{{ lineData.romanized }}</div>
                         </div>
+                    </div>
+                    <div v-else class="no-lyrics">{{ SongTips }}</div>
+                </div>
+                
+                <!-- 左侧信息在下 -->
+                <div class="left-section">
                     <div class="song-details">
                         <div class="song-title">{{ currentSong?.name }}</div>
-                        <div class="artist">{{ currentSong?.author }}</div>
+                        <div class="artist-album">
+                          <span 
+                            class="artist" 
+                            @click.stop="goToArtistDetail(currentSong?.author_id)" 
+                            style="cursor: pointer;"
+                          >
+                            {{ currentSong?.author }}
+                          </span>
+                          <span v-if="currentSong?.album_name" class="separator"> - </span>
+                          <span 
+                            v-if="currentSong?.album_name"
+                            class="album album-link"
+                            @click.stop="goToAlbumDetail(currentSong?.album_id, currentSong?.album_name)"
+                            style="cursor: pointer;"
+                          >
+                            《{{ currentSong.album_name }}》
+                          </span>
+                        </div>
                     </div>
 
                     <!-- 播放进度条 -->
@@ -127,9 +159,6 @@
                     </div>
 
                     <div class="player-controls">
-                        <button class="control-btn like-btn" title="我喜欢" @click="playlistSelect.toLike()">
-                            <i class="fas fa-heart"></i>
-                        </button>
                         <button class="control-btn" @click="playSongFromQueue('previous')">
                             <i class="fas fa-step-backward"></i>
                         </button>
@@ -147,22 +176,30 @@
                             </span>
                         </button>
                     </div>
-                </div>
-                <div id="lyrics-container" @wheel="handleLyricsWheel">
-                    <div v-if="lyricsData.length > 0" id="lyrics"
-                        :style="{ fontSize: lyricsFontSize, transform: `translateY(${scrollAmount ? scrollAmount + 'px' : '50%'})` }">
-                        <div class="line-group" v-for="(lineData, lineIndex) in lyricsData" :key="lineIndex">
-                            <div class="line" @click="handleLyricsClick(lineIndex)" :class="{ click: lyricsFlag, [lyricsAlign]: true }">
-                                <span v-for="(charData, charIndex) in lineData.characters" :key="charIndex" class="char"
-                                    :class="{ highlight: charData.highlighted }">
-                                    {{ charData.char }}
-                                </span>
+                    
+                    <!-- 额外控制按钮 -->
+                    <div class="lyrics-extra-controls">
+                        <div class="playback-speed">
+                            <button class="extra-btn" @click="toggleSpeedMenu" @touchstart.prevent="handleSpeedTouch" title="播放速度">
+                                <i class="fas fa-tachometer-alt"></i>
+                            </button>
+                            <div v-if="showSpeedMenu" class="speed-menu">
+                                <div v-for="speed in playbackSpeeds" :key="speed" class="speed-option" 
+                                    :class="{ active: currentSpeed === speed }" @click="changePlaybackSpeed(speed)" 
+                                    @touchstart.prevent="changePlaybackSpeed(speed)">
+                                    {{ speed }}x
+                                </div>
                             </div>
-                            <div class="line translated" :class="{ [lyricsAlign]: true }" v-show="lineData.translated && lyricsMode === 'translation'">{{ lineData.translated }}</div>
-                            <div class="line romanized" :class="{ [lyricsAlign]: true }" v-show="lineData.romanized && lyricsMode === 'romanization'">{{ lineData.romanized }}</div>
                         </div>
+                        
+                        <button class="extra-btn" title="收藏至" @click="playlistSelect.fetchPlaylists()"><i
+                            class="fas fa-add"></i></button>
+                        <button class="extra-btn" title="分享歌曲" @click="share('share?hash=' + currentSong.hash)"><i
+                            class="fas fa-share"></i></button>
+                        <button class="extra-btn" title="下载歌曲" @click="openQualityModal()"><i
+                            class="fas fa-download"></i></button>
+                        <button class="extra-btn" @click="goToFullScreenQueue()"><i class="fas fa-list"></i></button>
                     </div>
-                    <div v-else class="no-lyrics">{{ SongTips }}</div>
                 </div>
             </div>
         </div>
@@ -173,6 +210,85 @@
 
 </template>
 
+<style scoped>
+/* 专辑信息样式 */
+.song-info .album {
+    font-size: 0.8rem;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+.song-details .album {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* 合并的艺术家和专辑信息样式 */
+.song-details .artist-album {
+    display: flex;
+    align-items: center;
+    font-size: 0.9rem;
+    margin-top: 4px;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.song-details .artist-album .artist {
+    color: rgba(255, 255, 255, 0.8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    text-align: right;
+}
+
+.song-details .artist-album .separator {
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+.song-details .artist-album .album {
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    text-align: left;
+}
+
+/* 全屏歌词界面的宽度调整 */
+.lyrics-screen .left-section {
+    width: 100%;
+    max-width: none;
+}
+
+.lyrics-screen .song-details {
+    width: 100%;
+    padding: 0 20px;
+    box-sizing: border-box;
+}
+
+.lyrics-screen .song-details .song-title {
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 移动端响应式样式 */
+@media (max-width: 768px) {
+    .song-info .album {
+        font-size: 0.7rem;
+    }
+}
+</style>
+
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useMusicQueueStore } from '../stores/musicQueue';
@@ -182,6 +298,7 @@ import QueueList from './QueueList.vue';
 import QualitySelectModal from './QualitySelectModal.vue';
 import { useRouter } from 'vue-router';
 import { getCover, share } from '../utils/utils';
+import { get } from '../utils/request';
 
 // 从统一入口导入所有模块
 import {
@@ -193,6 +310,36 @@ import {
     useSongQueue,
     useHelpers
 } from './player';
+
+// 跳转到歌手详情页
+const goToArtistDetail = (artistId) => {
+    if (!artistId) return;
+    console.log('[PlayerControl] 跳转到歌手详情页:', artistId);
+    // 如果全屏歌词正在显示，则收起全屏歌词
+    if (showLyrics.value) {
+        console.log('[PlayerControl] 收起全屏歌词');
+        toggleLyrics(currentSong.value.hash, currentTime.value);
+    }
+    router.push(`/PlaylistDetail?singerid=${artistId}`);
+};
+
+// 跳转到专辑详情页
+const goToAlbumDetail = (albumId, albumName) => {
+    if (!albumName) return;
+    console.log('[PlayerControl] 跳转到专辑详情页:', { albumId, albumName });
+    // 如果全屏歌词正在显示，则收起全屏歌词
+    if (showLyrics.value) {
+        console.log('[PlayerControl] 收起全屏歌词');
+        toggleLyrics(currentSong.value.hash, currentTime.value);
+    }
+    
+    if (albumId) {
+        router.push({ path: '/albumSongs', query: { id: albumId } });
+    } else {
+        // 如果没有专辑ID，使用专辑名称作为查询参数
+        router.push({ path: '/albumSongs', query: { name: albumName } });
+    }
+};
 
 // 基础设置
 const queueList = ref(null);
@@ -208,6 +355,20 @@ const lyricsFontSize = ref('24px');
 const lyricsAlign = ref('center');
 const lyricsBackground = ref('on');
 const sliderElement = ref(null);
+
+// 使用展开式播放列表组件
+const goToFullScreenQueue = () => {
+    console.log('[PlayerControl] 打开展开式播放列表');
+    // 如果全屏歌词正在显示，则先收起全屏歌词
+    if (showLyrics.value) {
+        console.log('[PlayerControl] 收起全屏歌词');
+        toggleLyrics(currentSong.value.hash, currentTime.value);
+    }
+    // 使用组件的toggleQueue方法来显示播放列表
+    if (queueList.value) {
+        queueList.value.toggleQueue();
+    }
+};
 
 const isDragging = ref(false);
 const lyricsFlag = ref(false);
@@ -401,6 +562,32 @@ const mediaSession = useMediaSession();
 const songQueue = useSongQueue(t, musicQueueStore);
 const { currentSong, NextSong, addSongToQueue, addCloudMusicToQueue, addLocalMusicToQueue, addLocalPlaylistToQueue, addToNext, getPlaylistAllSongs, addPlaylistToQueue, addCloudPlaylistToQueue } = songQueue;
 
+// 监听自定义播放事件，用于响应其他组件发送的播放请求
+onMounted(() => {
+  const handlePlaySong = (event) => {
+    console.log('[PlayerControl] 收到播放事件:', event.detail);
+    if (event.detail?.song) {
+      // 调用播放函数播放指定的歌曲
+      playSong(event.detail.song);
+    }
+  };
+  
+  window.addEventListener('playSong', handlePlaySong);
+  
+  // 将audio元素保存到window对象，便于其他组件访问
+  if (audio) {
+    window.audioElement = audio;
+  }
+  
+  // 组件卸载时移除事件监听器
+  onUnmounted(() => {
+    window.removeEventListener('playSong', handlePlaySong);
+    if (window.audioElement === audio) {
+      delete window.audioElement;
+    }
+  });
+});
+
 // 添加自动切换定时器引用
 let autoSwitchTimer = null;
 // 恢复歌词正常滚动计时器
@@ -489,6 +676,32 @@ const playSong = async (song) => {
         }
 
         currentSong.value = structuredClone(song);
+        
+        // 当点击音乐时，请求/images?hash=接口
+        if (song.hash) {
+            console.log('[PlayerControl] 请求图片接口:', song.hash);
+            try {
+                const imageUrl = `/images?hash=${song.hash}`;
+                const response = await get(imageUrl);
+                console.log('[PlayerControl] 图片接口请求成功');
+                
+                // 从响应中提取歌手ID和专辑信息
+                if (response?.data && response.data.length > 0) {
+                    // 设置歌手ID
+                    if (response.data[0].author && response.data[0].author.length > 0) {
+                        currentSong.value.author_id = response.data[0].author[0].author_id;
+                    }
+                    // 设置专辑信息
+                    if (response.data[0].album && response.data[0].album.length > 0) {
+                        currentSong.value.album_id = response.data[0].album[0].album_id;
+                        currentSong.value.album_name = response.data[0].album[0].album_name;
+                    }
+                }
+            } catch (imageError) {
+                console.warn('[PlayerControl] 图片接口请求失败:', imageError);
+                // 图片请求失败不影响歌曲播放
+            }
+        }
 
         audio.src = song.url;
         setPlaybackRate(currentSpeed.value);

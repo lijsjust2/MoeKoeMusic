@@ -1,49 +1,30 @@
 <template>
     <div class="settings-page">
-        <div class="settings-sidebar">
-            <div v-for="(section, sectionIndex) in settingSections" :key="sectionIndex" 
-                 class="sidebar-item" 
-                 :class="{ active: activeTab === sectionIndex }"
-                 @click="activeTab = sectionIndex">
-                <i :class="getSectionIcon(section.title)"></i>
-                <span>{{ section.title }}</span>
-            </div>
-        </div>
-        
+        <!-- 直接显示设置内容 -->
         <div class="settings-content">
             <div v-for="(section, sectionIndex) in settingSections" :key="sectionIndex" 
-                 class="setting-section" 
-                 v-show="activeTab === sectionIndex">
-                <h3>{{ section.title }}</h3>
-                <ExtensionManager v-if="section.title === '插件'" />
-                <div v-else class="settings-cards">
-                    <div v-for="(item, itemIndex) in section.items" :key="itemIndex"
-                        class="setting-card" @click="item.action ? item.action(item.helpLink) : openSelection(item.key, item.helpLink)">
-                        <div class="setting-card-header">
-                            <i :class="getItemIcon(item.key)"></i>
-                            <span>{{ item.label }}</span>
-                            <span v-if="item.showRefreshHint && showRefreshHint[item.key]" class="refresh-hint">
-                                {{ item.refreshHintText }}
-                            </span>
-                        </div>
-                        <div class="setting-card-value">
-                            <span>{{ item.icon }}{{ item.customText || selectedSettings[item.key]?.displayText }}</span>
-                            <i class="fas fa-chevron-right"></i>
-                        </div>
+                 class="setting-section">
+            <h3>{{ section.title }}</h3>
+            <ExtensionManager v-if="section.title === '插件'" />
+            <div v-else class="settings-cards">
+                <div v-for="(item, itemIndex) in section.items" :key="itemIndex"
+                    class="setting-card" @click="item.action ? item.action(item.helpLink) : openSelection(item.key, item.helpLink)">
+                    <div class="setting-card-header">
+                        <i :class="getItemIcon(item.key)"></i>
+                        <span>{{ item.label }}</span>
+                        <span v-if="item.showRefreshHint && showRefreshHint[item.key]" class="refresh-hint">
+                            {{ item.refreshHintText }}
+                        </span>
+                    </div>
+                    <div class="setting-card-value">
+                        <span>{{ item.icon }}{{ item.customText || selectedSettings[item.key]?.displayText }}</span>
+                        <i class="fas fa-chevron-right"></i>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="reset-settings-container">
-                <button @click="openResetConfirmation" class="reset-settings-button">
-                    <i class="fas fa-sync-alt"></i>
-                    恢复出厂设置
-                </button>
-            </div>
-            <div class="version-info">
-                <p>© MoeKoe Music</p>
-                <span v-if="appVersion">V{{ appVersion }} - {{ platform }}</span>
-            </div>
+            <!-- 移除版本信息 -->
         </div>
 
         <div v-if="isSelectionOpen" class="modal">
@@ -72,6 +53,17 @@
                     <div class="api-setting-item">
                         <label>字体名称</label>
                         <input type="text" v-model="fontFamilyInput" class="api-input" placeholder="请输入字体名称" />
+                    </div>
+                </div>
+                
+                <div v-if="selectionType === 'apiServer'" class="api-settings-container">
+                    <div class="api-setting-item">
+                        <label>API服务器地址</label>
+                        <input type="text" v-model="apiServerInput" class="api-input" placeholder="请输入API服务器地址" />
+                    </div>
+                    <div class="modal-actions">
+                        <button class="secondary" @click="closeSelection">关闭</button>
+                        <button class="primary" @click="updateApiServerSetting">确定</button>
                     </div>
                 </div>
 
@@ -116,7 +108,7 @@
                         这些是默认的 API 地址，当前版本不支持自定义修改
                     </div>
                 </div>
-                <button @click="closeSelection">{{ $t('guan-bi') }}</button>
+
             </div>
         </div>
 
@@ -163,182 +155,24 @@ const activeTab = ref(0);
 
 // 设置配置
 const selectedSettings = ref({
-    language: { displayText: '🌏 ' + t('zi-dong'), value: '' },
-    themeColor: { displayText: t('shao-nv-fen'), value: 'pink' },
-    theme: { displayText: '☀️ ' + t('qian-se'), value: 'light' },
-    nativeTitleBar: { displayText: t('guan-bi'), value: 'off' },
-    quality: { displayText: t('pu-tong-yin-zhi'), value: 'normal' },
-    lyricsBackground: { displayText: t('da-kai'), value: 'on' },
-    desktopLyrics: { displayText: t('guan-bi'), value: 'off' },
-    lyricsFontSize: { displayText: t('zhong'), value: '24px' },
-    lyricsTranslation: { displayText: t('da-kai'), value: 'on' },
-    lyricsAlign: { displayText: '居中', value: 'center' },
-    font: { displayText: '默认字体', value: '' },
-    fontUrl: { displayText: '默认字体', value: '' },
-    greetings: { displayText: t('kai-qi'), value: 'on' },
-    gpuAcceleration: { displayText: t('guan-bi'), value: 'off' },
-    minimizeToTray: { displayText: t('da-kai'), value: 'on' },
-    highDpi: { displayText: t('guan-bi'), value: 'off' },
-    qualityCompatibility: { displayText: t('guan-bi'), value: 'off' },
-    dpiScale: { displayText: '1.0', value: '1.0' },
-    apiMode: { displayText: t('guan-bi'), value: 'off' },
-    touchBar: { displayText: t('guan-bi'), value: 'off' },
-    autoStart: { displayText: t('guan-bi'), value: 'off' },
-    startMinimized: { displayText: t('guan-bi'), value: 'off' },
-    preventAppSuspension: { displayText: t('guan-bi'), value: 'off' },
-    networkMode: { displayText: '主网', value: 'mainnet' },
+    apiServer: { displayText: 'http://frps.lijs.fun:6521', value: 'http://frps.lijs.fun:6521' }
 });
 
 // 设置分区配置
 const settingSections = computed(() => [
     {
-        title: t('jie-mian'),
+        title: '设置',
         items: [
             {
-                key: 'language',
-                label: t('yu-yan')
-            },
-            {
-                key: 'themeColor',
-                label: t('zhu-se-tiao'),
-                icon: '🎨 '
-            },
-            {
-                key: 'theme',
-                label: t('wai-guan')
-            },
-            {
-                key: 'nativeTitleBar',
-                label: t('native-title-bar'),
-                showRefreshHint: true,
-                refreshHintText: t('zhong-qi-hou-sheng-xiao')
-            },
-            {
-                key: 'font',
-                label: '字体设置',
-                showRefreshHint: true,
-                refreshHintText: t('shua-xin-hou-sheng-xiao'),
-                helpLink:'https://music.moekoe.cn/guide/font-settings.html'
-            }
-        ]
-    },
-    {
-        title: t('sheng-yin'),
-        items: [
-            {
-                key: 'quality',
-                label: t('yin-zhi-xuan-ze'),
-                icon: '🎧 '
-            },
-            {
-                key: 'greetings',
-                label: t('qi-dong-wen-hou-yu'),
-                icon: '👋 '
-            }
-        ]
-    },
-    {
-        title: t('ge-ci'),
-        items: [
-            {
-                key: 'lyricsBackground',
-                label: t('xian-shi-ge-ci-bei-jing'),
-                showRefreshHint: true,
-                refreshHintText: t('shua-xin-hou-sheng-xiao')
-            },
-            {
-                key: 'lyricsFontSize',
-                label: t('ge-ci-zi-ti-da-xiao'),
-                showRefreshHint: true,
-                refreshHintText: t('shua-xin-hou-sheng-xiao')
-            },
-            {
-                key: 'desktopLyrics',
-                label: t('xian-shi-zhuo-mian-ge-ci')
-            },
-            {
-                key: 'lyricsTranslation',
-                label: '歌词翻译',
-                showRefreshHint: true,
-                refreshHintText: t('zhong-qi-hou-sheng-xiao')
-            },
-            {
-                key: 'lyricsAlign',
-                label: '对齐方式',
-            }
-        ]
-    },
-    {
-        title: '插件',
-        items: []
-    },
-    {
-        title: t('xi-tong'),
-        items: [
-            {
-                key: 'gpuAcceleration',
-                label: t('jin-yong-gpu-jia-su-zhong-qi-sheng-xiao'),
-                showRefreshHint: true,
-                refreshHintText: t('zhong-qi-hou-sheng-xiao')
-            },
-            {
-                key: 'highDpi',
-                label: t('shi-pei-gao-dpi'),
-                showRefreshHint: true,
-                refreshHintText: t('zhong-qi-hou-sheng-xiao')
-            },
-            {
-                key: 'minimizeToTray',
-                label: t('guan-bi-shi-minimize-to-tray')
-            },
-            {
-                key: 'autoStart',
-                label: '开机自启动'
-            },
-            {
-                key: 'networkMode',
-                label: '网络模式',
-                showRefreshHint: true,
-                refreshHintText: '重启后生效',
-                helpLink:'https://music.moekoe.cn/guide/network-modes.html'
-            },
-            {
-                key: 'startMinimized',
-                label: '启动时最小化'
-            },
-            {
-                key: 'preventAppSuspension',
-                label: '阻止系统休眠',
-                showRefreshHint: true,
-                refreshHintText: t('zhong-qi-hou-sheng-xiao')
-            },
-            {
-                key: 'apiMode',
-                label: 'API模式',
-                showRefreshHint: true,
-                refreshHintText: t('zhong-qi-hou-sheng-xiao')
-            },
-            {
-                key: 'touchBar',
-                label: 'TouchBar',
-                showRefreshHint: true,
-                refreshHintText: t('zhong-qi-hou-sheng-xiao')
-            },
-            {
-                key: 'shortcuts',
-                label: t('quan-ju-kuai-jie-jian'),
-                customText: t('zi-ding-yi-kuai-jie-jian'),
-                action: openShortcutSettings
-            },
-            {
-                key: 'pwa',
-                label: t('pwa-app'),
-                customText: t('install'),
-                action: installPWA
+                key: 'apiServer',
+                label: 'API服务器地址',
+                icon: '🌐 '
             }
         ]
     }
 ]);
+
+// 移除所有其他设置项配置
 
 // 获取每个部分的图标
 const getSectionIcon = (title) => {
@@ -374,6 +208,7 @@ const getItemIcon = (key) => {
         'startMinimized': 'fas fa-compress',
         'preventAppSuspension': 'fas fa-clock',
         'apiMode': 'fas fa-code',
+        'apiServer': 'fas fa-server',
         'touchBar': 'fas fa-tablet-alt',
         'shortcuts': 'fas fa-keyboard',
         'pwa': 'fas fa-mobile-alt'
@@ -386,6 +221,7 @@ const currentHelpLink = ref('');
 const selectionType = ref('');
 const fontUrlInput = ref('');
 const fontFamilyInput = ref('');
+const apiServerInput = ref('');
 
 // 选项配置
 const selectionTypeMap = {
@@ -563,6 +399,12 @@ const selectionTypeMap = {
             { displayText: '测试网', value: 'testnet' },
             { displayText: '开发网', value: 'devnet' }
         ]
+    },
+    apiServer: {
+        title: 'API服务器配置',
+        options: [
+            { displayText: 'http://frps.lijs.fun:6521', value: 'http://frps.lijs.fun:6521' }
+        ]
     }
 };
 
@@ -576,7 +418,8 @@ const showRefreshHint = ref({
     font: false,
     touchBar: false,
     preventAppSuspension: false,
-    networkMode: false
+    networkMode: false,
+    apiServer: false
 });
 
 const openSelection = (type, helpLink) => {
@@ -595,6 +438,10 @@ const openSelection = (type, helpLink) => {
     if (type === 'font') {
         fontUrlInput.value = selectedSettings.value.fontUrl?.value || '';
         fontFamilyInput.value = selectedSettings.value.font?.value || '';
+    }
+    
+    if (type === 'apiServer') {
+        apiServerInput.value = selectedSettings.value.apiServer?.value || 'http://frps.lijs.fun:6521';
     }
 };
 
@@ -654,12 +501,15 @@ const selectOption = (option) => {
         },
         'networkMode': () => {
             showRefreshHint.value.networkMode = true;
+        },
+        'apiServer': () => {
+            showRefreshHint.value.apiServer = true;
         }
     };
     actions[selectionType.value]?.();
     saveSettings();
-    if(!['apiMode','font','fontUrl'].includes(selectionType.value)) closeSelection();
-    const refreshHintTypes = ['lyricsBackground', 'lyricsFontSize', 'gpuAcceleration', 'highDpi', 'apiMode', 'touchBar', 'preventAppSuspension', 'networkMode', 'font'];
+    if(!['apiMode','font','fontUrl','apiServer'].includes(selectionType.value)) closeSelection();
+    const refreshHintTypes = ['lyricsBackground', 'lyricsFontSize', 'gpuAcceleration', 'highDpi', 'apiMode', 'touchBar', 'preventAppSuspension', 'networkMode', 'font', 'apiServer'];
     if (refreshHintTypes.includes(selectionType.value)) {
         showRefreshHint.value[selectionType.value] = true;
     }
@@ -679,6 +529,27 @@ const handleFontFocusOut = (e) => {
     if (container && e.relatedTarget && container.contains(e.relatedTarget)) return;
     updateFontSetting('fontUrl');
     updateFontSetting('font');
+};
+
+// 移除焦点自动保存，改为通过确定按钮保存
+// const handleApiServerFocusOut = (e) => {
+//     const container = e.currentTarget;
+//     if (container && e.relatedTarget && container.contains(e.relatedTarget)) return;
+//     updateApiServerSetting();
+// };
+
+const updateApiServerSetting = () => {
+    const value = apiServerInput.value.trim() || 'http://frps.lijs.fun:6521';
+    // 确保URL格式正确，以http://或https://开头
+    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+        window.$modal.alert('API服务器地址必须以http://或https://开头');
+        return;
+    }
+    const prevType = selectionType.value;
+    selectionType.value = 'apiServer';
+    selectOption({ displayText: value, value });
+    selectionType.value = prevType;
+    closeSelection();
 };
 
 const isElectron = () => {
@@ -954,148 +825,140 @@ const installPWA = async () => {
 
 <style scoped>
 .settings-page {
-    display: flex;
-    height: 100vh;
-    overflow: hidden;
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.15);
-    border-radius: 8px;
-    margin-bottom: -80px;
-}
-
-.settings-sidebar {
-    width: 220px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
-    padding: 20px 0;
-    overflow-y: auto;
-}
-
-.sidebar-item {
-    padding: 12px 20px;
-    margin: 4px 10px;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    transition: all 0.2s ease;
-}
-
-.sidebar-item i {
-    margin-right: 12px;
-    font-size: 16px;
-    width: 20px;
-    text-align: center;
-}
-
-.sidebar-item.active {
-    background-color: var(--color-primary-light, rgba(255, 105, 180, 0.1));
-    color: var(--color-primary, #ff69b4);
-    font-weight: 500;
-}
-
-.sidebar-item:hover:not(.active) {
-    background-color: var(--hover-color, #efefef);
+    background: #ffffff;
+    color: var(--text-primary);
+    min-height: calc(100vh - 80px); /* 减去顶部导航栏高度，使用最小高度 */
 }
 
 .settings-content {
-    flex: 1;
+    max-width: 800px;
+    margin: 0 auto;
     padding: 20px;
-    overflow-y: auto;
+    box-sizing: border-box;
 }
 
 .setting-section {
-    animation: fadeIn 0.3s ease;
+    margin-bottom: 32px;
 }
 
 .setting-section h3 {
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 600;
-    margin-bottom: 20px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-color, #eaeaea);
+    margin-bottom: 16px;
+    color: var(--text-primary);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .settings-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .setting-card {
-    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 16px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-    transition: all 0.2s ease;
+    background: var(--card-hover);
     cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
 }
 
 .setting-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    background: var(--background-color);
+    border-color: var(--border-color);
 }
 
 .setting-card-header {
     display: flex;
     align-items: center;
-    margin-bottom: 12px;
+    gap: 12px;
 }
 
 .setting-card-header i {
-    color: var(--color-primary, #ff69b4);
-    margin-right: 10px;
-    font-size: 16px;
+    font-size: 18px;
+    color: var(--primary-color);
 }
 
 .setting-card-value {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
-    border-radius: 6px;
+    gap: 8px;
+    color: var(--text-secondary);
     font-size: 14px;
-    border: 1px solid var(--border-color, #eaeaea);
 }
 
 .setting-card-value i {
-    color: #999;
     font-size: 12px;
 }
 
 .refresh-hint {
-    color: #ff4d4f;
-    font-size: 12px;
     margin-left: 8px;
+    padding: 2px 8px;
+    background: var(--primary-color);
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
 }
 
+.version-info {
+    text-align: center;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.version-info p {
+    margin: 0 0 8px 0;
+}
+
+/* 弹窗样式 */
 .modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: fadeIn 0.3s ease-in-out;
-    z-index: 9;
+    z-index: 1000;
 }
 
 .modal-content {
-    background: white;
-    padding: 25px;
-    border-radius: 12px;
+    background: var(--card-background);
+    padding: 24px;
     width: 90%;
-    max-width: 400px;
-    text-align: center;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-    animation: slideIn 0.3s ease-in-out;
-    position: relative;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
 }
 
 .modal-content h3 {
-    font-size: 20px;
+    margin-top: 0;
     margin-bottom: 20px;
-    color: #333;
+    font-size: 18px;
+    color: var(--text-primary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.help-link {
+    color: var(--primary-color);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.help-link:hover {
+    background: var(--primary-color-light);
 }
 
 .modal-content ul {
@@ -1106,64 +969,179 @@ const installPWA = async () => {
 
 .modal-content li {
     padding: 12px;
-    margin: 6px 0;
-    background-color: var(--background-color);
-    border-radius: 8px;
+    margin-bottom: 8px;
+    background: var(--card-hover);
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
 }
 
 .modal-content li:hover {
-    background-color:var(--secondary-color);
+    background: var(--background-color);
+    border-color: var(--border-color);
 }
 
-.modal-content button {
-    margin-top: 20px;
-    padding: 10px 20px;
-    background-color: var(--color-primary);
+/* API设置样式 */
+.api-settings-container {
+    margin-bottom: 20px;
+}
+
+.api-setting-item {
+    margin-bottom: 16px;
+}
+
+.api-setting-item label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.api-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--background-color);
+    color: var(--text-primary);
+    font-size: 14px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+}
+
+.api-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.api-input:disabled {
+    background: var(--card-hover);
+    cursor: not-allowed;
+}
+
+.api-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+}
+
+/* 按钮组样式 */
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.modal-actions button {
+    padding: 10px 24px;
+    background: var(--background-color);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modal-actions button:hover {
+    background: var(--card-hover);
+}
+
+.modal-actions button.primary {
+    background: var(--primary-color);
     color: white;
-    border: none;
-    border-radius: 8px;
+    border-color: var(--primary-color);
+}
+
+.modal-actions button.primary:hover {
+    background: var(--primary-color-dark);
+}
+
+/* 兼容性选项样式 */
+.compatibility-option {
+    margin-top: 16px;
+}
+
+.compatibility-option label {
+    display: flex;
+    align-items: flex-start;
     cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.3s;
+    font-size: 14px;
+    color: var(--text-primary);
 }
 
-.modal-content button:hover {
-    background-color: var(--color-primary)
+.compatibility-option input[type="checkbox"] {
+    margin-right: 8px;
+    margin-top: 2px;
 }
 
-.help-link {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    color: var(--color-primary);
+.compatibility-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-left: 24px;
+    margin-top: 4px;
+}
+
+/* 缩放滑块样式 */
+.scale-slider-container {
+    margin-top: 16px;
+}
+
+.scale-slider-label {
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.scale-slider-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-left: 8px;
+}
+
+.scale-slider-wrapper {
+    margin-bottom: 8px;
+}
+
+.scale-slider {
+    width: 100%;
+    height: 6px;
+    background: var(--card-hover);
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.scale-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    background: var(--primary-color);
     cursor: pointer;
-    text-decoration: none;
-    font-size: 18px;
+    transition: all 0.2s ease;
 }
 
-.help-link:hover {
-    opacity: 0.85;
+.scale-slider::-webkit-slider-thumb:hover {
+    /* 移除了多余的视觉图层效果 */
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+.scale-marks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary);
 }
 
-@keyframes slideIn {
-    from { transform: translateY(-20px); }
-    to { transform: translateY(0); }
-}
-
+/* 快捷键设置样式 */
 .shortcut-modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1171,245 +1149,204 @@ const installPWA = async () => {
 }
 
 .shortcut-modal-content {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
+    background: var(--card-background);
+    padding: 24px;
     width: 90%;
-    max-width: 500px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
 }
 
 .shortcut-modal-content h3 {
-    margin: 0 0 20px 0;
+    margin-top: 0;
+    margin-bottom: 20px;
     font-size: 18px;
-    text-align: center;
+    color: var(--text-primary);
 }
 
 .shortcut-list {
-    margin-bottom: 20px;
-    max-height: 60vh;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
 }
 
 .shortcut-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid #eee;
+    padding: 12px;
+    background: var(--card-hover);
 }
 
 .shortcut-input {
     position: relative;
-    background: #f5f5f5;
     padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
+    background: var(--background-color);
+    border: 1px solid var(--border-color);
     min-width: 150px;
     text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.shortcut-input:hover {
+    border-color: var(--primary-color);
 }
 
 .shortcut-input.recording {
-    background: var(--color-primary);
-    color: white;
-}
-
-.shortcut-input.recording .clear-shortcut {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-}
-
-.shortcut-input.recording .clear-shortcut:hover {
-    background: rgba(255, 255, 255, 0.3);
-    color: white;
+    background: var(--primary-color-light);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
 }
 
 .clear-shortcut {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    background: var(--border-color);
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.1);
+    font-size: 12px;
     cursor: pointer;
-    font-size: 14px;
-    color: #666;
-    transition: all 0.2s;
-    position: absolute;
-    right: 5px;
+    transition: background-color 0.2s ease;
+}
+
+.clear-shortcut:hover {
+    background: var(--text-secondary);
 }
 
 .shortcut-modal-footer {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
 }
 
 .shortcut-modal-footer button {
-    padding: 8px 20px;
-    border-radius: 6px;
-    border: none;
+    padding: 10px 24px;
+    background: var(--background-color);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.shortcut-modal-footer button:hover {
+    background: var(--card-hover);
 }
 
 .shortcut-modal-footer button.primary {
-    background: var(--color-primary);
+    background: var(--primary-color);
     color: white;
+    border-color: var(--primary-color);
 }
 
-.version-info {
-    text-align: center;
-    margin-top: 20px;
-    font-size: 14px;
-    color: #666;
+.shortcut-modal-footer button.primary:hover {
+    background: var(--primary-color-dark);
 }
 
-.reset-settings-container {
-    display: flex;
-    justify-content: center;
-    margin: 30px 0 20px 0;
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .settings-page {
+        padding: 16px;
+        min-height: calc(100vh - 80px); /* 改为最小高度 */
+    }
+    
+    .settings-content {
+        padding: 16px;
+    }
+    
+    .setting-card {
+        padding: 12px;
+    }
+    
+    .modal-content {
+        width: 95%;
+        padding: 20px;
+    }
+    
+    .shortcut-modal-content {
+        width: 95%;
+        padding: 20px;
+    }
+    
+    .setting-card-header i {
+        font-size: 16px;
+    }
+    
+    .setting-card-header span {
+        font-size: 14px;
+    }
+    
+    .setting-card-value {
+        font-size: 12px;
+    }
+    
+    .refresh-hint {
+        font-size: 10px;
+        padding: 1px 6px;
+    }
 }
 
-.reset-settings-button {
-    background-color: #f44336;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.reset-settings-button:hover {
-    background-color: #e53935;
-}
-
-.compatibility-option {
-    margin-top: 15px;
-    text-align: left;
-    padding: 10px;
-    background-color: var(--background-color);
-    border-radius: 8px;
-}
-
-.compatibility-option label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-}
-
-.compatibility-hint {
-    margin-top: 5px;
-    font-size: 12px;
-    color: #666;
-    line-height: 21px;
-}
-
-.scale-slider-container {
-    margin-top: 15px;
-    text-align: left;
-    padding: 15px;
-    background-color: var(--background-color);
-    border-radius: 8px;
-}
-
-.scale-slider-label {
-    font-weight: bold;
-    margin-bottom: 10px;
-}
-
-.scale-slider-hint {
-    font-size: 12px;
-    color: #666;
-}
-
-.scale-slider-wrapper {
-    position: relative;
-    padding-bottom: 20px;
-}
-
-.scale-slider {
-    width: 100%;
-    height: 6px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: #ddd;
-    outline: none;
-    border-radius: 3px;
-}
-
-.scale-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    cursor: pointer;
-}
-
-.scale-slider::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    cursor: pointer;
-    border: none;
-}
-
-.scale-marks {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 5px;
-    font-size: 12px;
-    color: #666;
-}
-
-.api-settings-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.api-settings-container .api-setting-item {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    margin-bottom: 10px;
-    width: 100%;
-}
-
-.api-settings-container .api-setting-item label {
-    font-size: 14px;
-    color: #333;
-    margin-bottom: 5px;
-}
-
-.api-settings-container .api-setting-item .api-input {
-    width: 100%;
-    height: 35px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    padding: 5px;
-    padding-left: 10px;
-    box-sizing: border-box;
-}
-
-.api-settings-container .api-hint {
-    font-size: 12px;
-    color: #999;
-    text-align: center;
+@media (max-width: 480px) {
+    .settings-page {
+        padding: 12px;
+        min-height: calc(100vh - 80px); /* 改为最小高度 */
+    }
+    
+    .settings-content {
+        padding: 12px;
+    }
+    
+    .setting-section h3 {
+        font-size: 16px;
+        margin-bottom: 12px;
+    }
+    
+    .setting-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .setting-card-value {
+        align-self: stretch;
+        justify-content: space-between;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+    }
+    
+    .modal-actions button {
+        width: 100%;
+    }
+    
+    .shortcut-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .shortcut-input {
+        width: 100%;
+    }
+    
+    .shortcut-modal-footer {
+        flex-direction: column;
+    }
+    
+    .shortcut-modal-footer button {
+        width: 100%;
+    }
 }
 </style>
