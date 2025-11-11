@@ -1,28 +1,20 @@
 import { createI18n } from 'vue-i18n';
-import en from '../language/en.json';
-import ja from '../language/ja.json';
-import ko from '../language/ko.json';
 import zh_CN from '../language/zh-CN.json';
-import zh_TW from '../language/zh-TW.json';
 
 const messages = {
-  en,
-  ja,
-  ko,
   'zh-CN': zh_CN,
-  'zh-TW': zh_TW,
 };
 
 const getBrowserLocale = () => {
   const browserLang = navigator.language;
   if (browserLang.startsWith('zh')) {
     if (browserLang === 'zh-TW' || browserLang === 'zh-HK') {
-      return 'zh-TW';
+      return 'zh-CN'; // 统一使用简体中文
     }
     return 'zh-CN';
   }
-  const lang = browserLang.split('-')[0];
-  return Object.keys(messages).includes(lang) ? lang : 'ja';
+  // 对于非中文浏览器，也返回中文
+  return 'zh-CN';
 };
 
 // 默认使用中文，同时保留用户设置的优先级
@@ -30,7 +22,7 @@ const defaultLocale = JSON.parse(localStorage.getItem('settings'))?.['language']
 
 const i18n = createI18n({
   locale: defaultLocale,
-  fallbackLocale: 'zh-CN', // 改为中文作为后备语言
+  fallbackLocale: 'zh-CN',
   messages,
 });
 
