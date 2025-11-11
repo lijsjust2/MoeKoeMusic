@@ -16,14 +16,23 @@
             </div>
         </div>
         <div v-else class="song-list">
+            <!-- 歌曲列表 -->
             <div class="song-item" v-for="(song, index) in songs" :key="index"
                 @click="playSong($getQuality(null, song), song.ori_audio_name, $getCover(song.sizable_cover, 480), song.author_name)"
                 @contextmenu.prevent="showContextMenu($event, song)">
-                <img :src="$getCover(song.sizable_cover, 64)" :alt="song.ori_audio_name" class="song-cover">
-                <div class="song-info">
-                    <div class="song-title">{{ song.ori_audio_name }}</div>
-                    <div class="song-artist">{{ song.author_name }}</div>
+                <div class="col-index">
+                    <span class="song-index" :class="{'top-three': index < 3}">{{ index + 1 }}</span>
                 </div>
+                <div class="col-cover">
+                    <img :src="$getCover(song.sizable_cover, 120)" :alt="song.ori_audio_name">
+                    <div class="hover-play">
+                        <i class="fas fa-play"></i>
+                    </div>
+                </div>
+                <div class="col-name">{{ song.ori_audio_name }}</div>
+                <div class="col-artist">{{ song.author_name }}</div>
+                <div class="col-album" @click.stop="navigateToAlbum(song)" style="cursor: pointer; color: #0066cc;">{{ song.album_name || '未知专辑' }}</div>
+                <div class="col-time">{{ $formatMilliseconds(song.time_length) }}</div>
             </div>
         </div>
         <h2 class="section-title">{{ $t('tui-jian-ge-dan') }}</h2>
@@ -73,6 +82,24 @@ const showContextMenu = (event, song) => {
             FileHash: song.hash,
             cover: song.sizable_cover?.replace("{size}", 480).replace('http://', 'https://') || './assets/images/ico.png',
             timeLength: song.time_length
+        });
+    }
+};
+
+// 跳转到专辑详情页
+const navigateToAlbum = (song) => {
+    // 尝试获取专辑ID（根据数据结构可能不同）
+    const albumId = song.album_id || song.albuminfo?.album_id || null;
+    if (albumId) {
+        router.push({
+            path: '/albumSongs',
+            query: { id: albumId }
+        });
+    } else if (song.album_name) {
+        // 如果没有专辑ID，使用专辑名称作为查询参数
+        router.push({
+            path: '/albumSongs',
+            query: { name: song.album_name }
         });
     }
 };
@@ -149,21 +176,18 @@ const privilegeSong = async (hash) => {
 .recommend-card {
     width: 400px;
     height: 200px;
-    border-radius: 15px;
     overflow: hidden;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.3s ease;
 }
 
 .recommend-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 .recommend-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 15px;
 }
 
 .play-icon {
@@ -178,60 +202,212 @@ const privilegeSong = async (hash) => {
 }
 
 .song-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
+    padding: 0;
     margin-top: 20px;
-    justify-content: space-between;
-    width: 100%;
+    /* 移除了多余的视觉图层效果 */
 }
 
+.song-list {
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: white;
+    margin-bottom: 40px; /* 增加与推荐歌单标题之间的间距 */
+}
+
+
+
+/* 歌曲项样式 */
 .song-item {
     display: flex;
     align-items: center;
-    width: calc(50% - 10px);
-    background-color: #fff;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease;
+    padding: 8px 8px;
+    transition: all 0.2s ease;
     cursor: pointer;
-    box-sizing: border-box;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.song-item:last-child {
+    border-bottom: none;
 }
 
 .song-item:hover {
-    transform: translateY(-5px);
+    background: #f8f9fa;
 }
 
-.song-cover {
-    width: 50px;
-    height: 50px;
-    border-radius: 5px;
+/* 各列样式 */
+.col-index {
+    width: 60px;
+    text-align: center;
+    flex-shrink: 0;
 }
 
-.song-info {
+.col-cover {
+    width: 48px;
+    height: 48px;
+    margin: 0 16px;
+    flex-shrink: 0;
+}
+
+.col-name {
+    flex: 2;
+    min-width: 0;
+    padding-right: 12px;
+}
+
+.col-artist {
+    flex: 1.5;
+    min-width: 0;
+    padding-right: 12px;
+}
+
+.col-album {
+    flex: 1.5;
+    min-width: 0;
+    padding-right: 12px;
+}
+
+.col-time {
+    width: 80px;
+    text-align: right;
+    color: #999;
+    flex-shrink: 0;
+}
+
+/* 序号样式 */
+.song-index {
+    font-size: 16px;
+    font-weight: 500;
+    color: #999;
+}
+
+.song-index.top-three {
+    font-size: 18px;
+    font-weight: 600;
+    background: linear-gradient(45deg, #ff6b6b, #ff8787);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* 封面图样式 */
+.col-cover {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.col-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 播放按钮样式 */
+.hover-play {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
     display: flex;
-    flex-direction: column;
-    margin-left: 15px;
-    flex: 1;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
 }
 
-.song-title {
+.song-item:hover .hover-play {
+    opacity: 1;
+}
+
+.hover-play i {
+    color: white;
+    font-size: 24px;
+}
+
+/* 文本样式 */
+.col-name,
+.col-artist,
+.col-album {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.col-name {
     font-size: 14px;
-    font-weight: bold;
-    color: var(--primary-color);
-    margin-bottom: 5px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-weight: 500;
+    color: #333;
 }
 
-.song-artist {
-    font-size: 12px;
+.col-artist {
+    font-size: 13px;
     color: #666;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+}
+
+.col-time {
+    font-size: 12px;
+}
+
+/* 响应式设计 */
+@media screen and (max-width: 1200px) {
+    .col-index {
+        width: 50px;
+    }
+    
+    .col-cover {
+        width: 40px;
+        height: 40px;
+        margin: 0 12px;
+    }
+    
+    .col-time {
+        width: 70px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .song-item {
+        padding: 10px 12px;
+    }
+    
+    .col-index {
+        width: 20px;
+    }
+    
+    .col-cover {
+        width: 36px;
+        height: 36px;
+        margin: 0 8px;
+    }
+    
+    .col-time {
+        width: 50px;
+    }
+    
+    .col-name,
+    .col-artist,
+    .col-album {
+        font-size: 12px;
+    }
+}
+
+/* 自定义滚动条 */
+.song-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.song-list::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 3px;
+}
+
+.song-list::-webkit-scrollbar-track {
+    background: #f5f5f5;
 }
 
 .playlist-grid {
@@ -242,13 +418,10 @@ const privilegeSong = async (hash) => {
 }
 
 .playlist-item {
-    background-color: #fff;
-    border-radius: 10px;
-    overflow: hidden;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.3s ease;
     cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     width: calc(16.666% - 30px);
+    /* 移除了多余的视觉图层效果 */
 }
 
 @media screen and (max-width: 1400px) {
@@ -304,7 +477,6 @@ const privilegeSong = async (hash) => {
 }
 .playlist-item:hover {
     transform: translateY(-5px);
-    box-shadow: 0 10px 20px var(--color-box-shadow);
 }
 
 .playlist-cover {
@@ -415,7 +587,6 @@ const privilegeSong = async (hash) => {
     width: 60px;
     height: 60px;
     position: relative;
-    border-radius: 12px;
     transform: perspective(500px) rotateY(-15deg);
     transition: transform 0.3s ease;
     display: flex;
@@ -434,7 +605,6 @@ const privilegeSong = async (hash) => {
 .bar {
     width: 3px;
     background: #4a90e2;
-    border-radius: 3px;
     animation: sound-wave 1.2s ease-in-out infinite;
 }
 
@@ -488,12 +658,10 @@ const privilegeSong = async (hash) => {
     order: 3;
     width: 40px;
     height: 40px;
-    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
     margin-right: 20px;
     margin-top: -57px;
@@ -603,7 +771,6 @@ const privilegeSong = async (hash) => {
     height: 100%;
     text-decoration: none;
     background: linear-gradient(135deg, var(--primary-color), #9f92ff);
-    border-radius: 15px;
     overflow: hidden;
 }
 
@@ -645,15 +812,14 @@ const privilegeSong = async (hash) => {
     justify-content: center;
     width: 100%;
     height: 100%;
-    border-radius: 15px;
     background: linear-gradient(135deg, var(--primary-color), #cfff82);
     color: white;
     text-align: center;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.3s ease;
 }
 
 .playlist-entry:hover {
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    transform: translateY(-5px);
 }
 
 .playlist-content {

@@ -72,6 +72,21 @@
             :class="{ 'locked': isLocked }"
             :style="containerStyle"
         >
+            <!-- 歌曲信息区域 -->
+            <div class="song-info-area" v-if="currentSongInfo.name || currentSongInfo.author || currentSongInfo.album_name">
+                <div class="song-name">{{ currentSongInfo.name || '' }}</div>
+                <div class="song-meta">
+                    <span class="artist-name">{{ currentSongInfo.author || '' }}</span>
+                    <span class="separator" v-if="currentSongInfo.author && currentSongInfo.album_name"> · </span>
+                    <span 
+                        class="album-name" 
+                        v-if="currentSongInfo.album_name" 
+                        @click="goToAlbumDetail(currentSongInfo.album_id)"
+                    >
+                        {{ currentSongInfo.album_name }}
+                    </span>
+                </div>
+            </div>
             <template v-if="lyrics.length">
                 <div class="lyrics-line">
                     <div class="lyrics-content" 
@@ -112,6 +127,12 @@ const isLocked = ref(false)
 const controlsOverlay = ref(null)
 const lyricsContainerRef = ref(null)
 const activeLyricsContentRef = ref(null)
+const currentSongInfo = ref({
+    name: '',
+    author: '',
+    album_id: '',
+    album_name: ''
+})
 
 const currentTime = ref(0)
 const currentLineIndex = ref(0)
@@ -277,9 +298,31 @@ window.electron.ipcRenderer.on('lyrics-data', (data) => {
         currentTime.value = 0;
         currentLineScrollX.value = 0;
         displayedLines.value = [0, 1];
+        
+        // 更新歌曲信息
+        if (data.songInfo) {
+            currentSongInfo.value = {
+                name: data.songInfo.name || '',
+                author: data.songInfo.author || '',
+                album_id: data.songInfo.album_id || '',
+                album_name: data.songInfo.album_name || ''
+            };
+        }
     } 
     currentTime.value = data.currentTime * 1000;
     updateCurrentLineIndex();
+})
+
+// 监听歌曲信息更新
+window.electron.ipcRenderer.on('song-info-updated', (songInfo) => {
+    if (songInfo) {
+        currentSongInfo.value = {
+            name: songInfo.name || currentSongInfo.value.name,
+            author: songInfo.author || currentSongInfo.value.author,
+            album_id: songInfo.album_id || currentSongInfo.value.album_id,
+            album_name: songInfo.album_name || currentSongInfo.value.album_name
+        };
+    }
 })
 
 // 处理歌词数据，添加完整的文本
@@ -301,6 +344,13 @@ const fontSize = ref(32)
 const changeFontSize = (delta) => {
     fontSize.value = Math.max(12, Math.min(72, fontSize.value + delta))
     localStorage.setItem('lyrics-font-size', fontSize.value)
+}
+
+// 跳转到专辑详情页
+const goToAlbumDetail = (albumId) => {
+    if (!albumId) return;
+    console.log('[Lyrics] 跳转到专辑详情页:', albumId);
+    window.electron.ipcRenderer.send('navigate-to-album', { albumId });
 }
 
 onMounted(() => {
@@ -500,7 +550,6 @@ html {
 
 .lyrics-container {
     backdrop-filter: blur(10px);
-    border-radius: 12px;
     user-select: none;
     display: flex;
     flex-direction: column;
@@ -523,7 +572,6 @@ html {
 .lyrics-container.hovering {
     background-color: rgba(0, 0, 0, 0.4);
     cursor: move;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -564,13 +612,11 @@ html {
     justify-content: center;
     background: rgba(30, 30, 30, 0.75);
     padding: 6px 12px;
-    border-radius: 20px;
     backdrop-filter: blur(4px);
     transition: all 0.3s ease;
     width: auto;
     min-width: 430px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .lock-button {
@@ -587,7 +633,6 @@ html {
     padding: 6px;
     width: auto;
     min-width: auto;
-    border-radius: 50%;
 }
 
 .controls-wrapper button {
@@ -597,13 +642,11 @@ html {
     cursor: pointer;
     width: 28px !important;
     height: 28px !important;
-    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
     transform: scale(1);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .controls-wrapper button:hover {
@@ -620,10 +663,45 @@ html {
     font-size: 16px;
 }
 
+.song-info-area {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 0 20px;
+    max-width: 80%;
+}
+
+.song-name {
+    font-size: 18px;
+    color: #ffffff;
+    margin-bottom: 5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.song-meta {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.album-name {
+    cursor: pointer;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.album-name:hover {
+    color: var(--primary-color) || #4a9eff;
+}
+
 .lyrics-line {
     overflow: hidden;
     position: relative;
-    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
     opacity: 1;
     transform: translateY(0);
     will-change: background-position;
@@ -633,7 +711,6 @@ html {
     display: inline-block;
     white-space: nowrap;
     transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-    border-radius: 6px;
     transform: translateX(0);
     background-color: transparent;
 }
@@ -644,6 +721,7 @@ html {
 
 .nolyrics{
     margin-bottom: 30px;
+    text-align: center;
 }
 
 .controls-wrapper:not(.locked-controls) {
@@ -709,10 +787,8 @@ html {
 .color-preview {
     width: 16px;
     height: 16px;
-    border-radius: 4px;
     border: 1px solid rgba(255, 255, 255, 0.3);
     transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .hidden-color-input {

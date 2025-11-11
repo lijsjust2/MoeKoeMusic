@@ -199,10 +199,8 @@ const playlist = async () => {
 }
 
 .music-card {
-    background-color: #fff;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    /* 移除了多余的视觉图层效果 */
+    transition: transform 0.3s ease;
     padding: 10px;
     text-align: center;
     width: calc(50% - 10px);
@@ -231,7 +229,6 @@ const playlist = async () => {
 
 .music-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 10px 20px var(--color-box-shadow)
 }
 
 .music-card img {

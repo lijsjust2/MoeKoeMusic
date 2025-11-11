@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router';
+import { createRouter, createWebHistory } from 'vue-router';
 import HomeLayout from '@/layouts/HomeLayout.vue';
 import Home from '@/views/Home.vue';
 import Discover from '@/views/Discover.vue';
@@ -6,17 +6,21 @@ import Library from '@/views/Library.vue';
 import Login from '@/views/Login.vue';
 import Settings from '@/views/Settings.vue';
 import PlaylistDetail from '@/views/PlaylistDetail.vue';
+import AlbumDetail from '@/views/AlbumDetail.vue';
+import AlbumSongs from '@/views/AlbumSongs.vue';
 import Search from '@/views/Search.vue';
 import Lyrics from '@/views/Lyrics.vue';
 import Ranking from '@/views/Ranking.vue';
 import CloudDrive from '@/views/CloudDrive.vue';
 import LocalMusic from '@/views/LocalMusic.vue';
+// FullScreenQueue已整合到主界面中
 import { MoeAuthStore } from '@/stores/store';
 
 
 const routes = [
     {
         path: '/',
+        name: 'Home',
         component: HomeLayout,
         children: [
             { path: '', name: 'Index', component: Home },
@@ -26,17 +30,21 @@ const routes = [
             { path: '/login', name: 'Login', component: Login },
             { path: '/settings', name: 'Settings', component: Settings },
             { path: '/playlistDetail', name: 'PlaylistDetail', component: PlaylistDetail },
+            { path: '/albumDetail', name: 'AlbumDetail', component: AlbumDetail },
+            { path: '/album', name: 'AlbumDetailAlt', component: AlbumDetail },
             { path: '/search', name: 'Search', component: Search },
             { path: '/ranking', name: 'Ranking', component: Ranking },
             { path: '/CloudDrive', name: 'CloudDrive', component: CloudDrive },
             { path: '/LocalMusic', name: 'LocalMusic', component: LocalMusic },
+            { path: '/albumSongs', name: 'AlbumSongs', component: AlbumSongs },
         ],
     },
     { path: '/lyrics', name: 'Lyrics', component: Lyrics },
+    // 全屏播放列表已整合到主界面中
 ];
 
 const router = createRouter({
-    history: createWebHashHistory(),
+    history: createWebHistory(),
     routes,
     scrollBehavior(to, from, savedPosition) {
         if (savedPosition) {
@@ -75,9 +83,9 @@ router.beforeEach((to, from, next) => {
     if (to.matched.some(record => record.meta.requiresAuth)) {
         // 需要认证的路由
         if (!MoeAuth.isAuthenticated) {
-            // 未认证用户重定向到登录页
+            // 未认证用户重定向到登录页，并携带当前页面路径作为参数
             next({
-                path: '/login',
+                name: 'Login',
                 query: { redirect: to.fullPath } 
             });
         } else {

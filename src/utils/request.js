@@ -3,14 +3,51 @@ import axios from 'axios';
 import { MoeAuthStore } from '../stores/store';
 
 // 创建一个 axios 实例
+const getBaseURL = () => {
+    // 优先使用本地API
+    const localAPI = 'http://localhost:6521';
+    
+    try {
+        // 尝试从localStorage读取设置
+        const settings = localStorage.getItem('settings');
+        if (settings) {
+            try {
+                const parsedSettings = JSON.parse(settings);
+                // 如果用户明确设置了强制使用自定义API，则使用用户配置的API
+                if (parsedSettings.forceUseCustomAPI && parsedSettings.apiServer && parsedSettings.apiServer.trim()) {
+                    return parsedSettings.apiServer.trim();
+                }
+            } catch (error) {
+                console.error('解析设置出错:', error);
+            }
+        }
+    } catch (e) {
+        console.error('检查设置出错:', e);
+    }
+    
+    // 优先返回本地API地址
+    return localAPI;
+};
+
 const httpClient = axios.create({
-    baseURL: import.meta.env.VITE_APP_API_URL || 'http://127.0.0.1:6521',
-    timeout: 10000,
+    timeout: 15000,
     headers: {
         'Content-Type': 'application/json',
     },
     withCredentials: true,
 });
+
+// 在请求拦截器中动态设置baseURL，确保每次请求都使用最新的配置
+httpClient.interceptors.request.use(
+    config => {
+        // 每次请求前动态获取最新的baseURL
+        config.baseURL = getBaseURL();
+        return config;
+    },
+    error => {
+        return Promise.reject(error);
+    }
+);
 
 // 请求拦截器
 httpClient.interceptors.request.use(
@@ -36,19 +73,30 @@ httpClient.interceptors.response.use(
         return response.data;
     },
     error => {
+        // 确保$message可用
+        const showError = (message) => {
+            if (window.$message) {
+                $message.error(message);
+            } else {
+                console.error(message);
+                alert(message);
+            }
+        };
+        
         if (error.response) {
             console.error(`http error status:${error.response.status}`,error.response.data);
             if (error.response?.data?.data) {
                 console.error(error.response.data.data);
+                showError(error.response.data.data || '服务器错误,请稍后再试!');
             } else {
-                $message.error('服务器错误,请稍后再试!');
+                showError('服务器错误,请稍后再试!');
             }
         } else if (error.request) {
             console.error('No response received:', error.request);
-            $message.error('服务器未响应,请稍后再试!');
+            showError('无法连接到API服务器，请检查网络连接或服务器地址!');
         } else {
             console.error('Error:', error.message);
-            $message.error('请求错误,请稍后再试!');
+            showError('请求错误,请稍后再试!');
         }
         return Promise.reject(error);
     }

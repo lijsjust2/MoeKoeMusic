@@ -93,32 +93,47 @@ html {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     background-color: #FFF;
     color: var(--text-color);
-    height: 100%;
+    min-height: 100vh;
+    overflow-x: hidden;
 }
 
+/* 保留滚动功能，使用自定义滚动条样式 */
 body {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    -ms-overflow-style: auto;
+    scrollbar-width: thin;
 }
 
 ::-webkit-scrollbar {
-    width: 0;
-    height: 0;
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.3);
 }
 
 main {
-    min-height: calc(100vh - 80px - 188px);
+    min-height: calc(100vh - 80px);
     max-width: 1200px;
     margin: 0 auto;
-    margin-bottom: 150px;
     padding-top: 80px;
-    padding-bottom: 150px;
+    padding-bottom: 120px; /* 确保底部有足够空间，不被播放器遮挡，但不会有过大空白 */
 }
 
 /* 移动端响应式设计 */
 @media (max-width: 768px) {
     main {
-        margin-bottom: 120px; /* 在移动端减小底部边距，确保内容不会被播放器遮挡过多 */
+        margin-bottom: 0px; /* 在移动端减小底部边距，确保内容不会被播放器遮挡过多 */
     }
 }
 

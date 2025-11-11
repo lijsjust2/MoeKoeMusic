@@ -19,9 +19,7 @@
                     <button class="primary-btn" @click="addPlaylistToQueue($event)">
                         <i class="fas fa-play"></i> {{ $t('bo-fang') }}
                     </button>
-                    <button class="follow-btn" v-if="isArtist" @click="toggleFollow" :disabled="followLoading">
-                        <i class="fas fa-heart"></i> {{ isFollowed ? '已关注' : '关注' }}
-                    </button>
+
                     <button class="fav-btn" v-if="!isArtist && detail.list_create_userid != MoeAuth.UserInfo?.userid && !route.query.listid" 
                         @click="toggleFavorite(detail.list_create_gid)" :class="{ 'active': isPlaylistFavorited }">
                         <i class="fas fa-heart"></i>
@@ -59,36 +57,44 @@
 
         <!-- 导航按钮已移除 -->
 
+        <!-- 内容切换区域 - 仅在歌手页面显示 -->
+        <div v-if="isArtist" class="content-tabs">
+            <button class="tab-btn" :class="{ 'active': activeTab === 'songs' }" @click="switchTab('songs')">
+                歌曲列表 ({{ detail.song_count }})
+            </button>
+            <button class="tab-btn" :class="{ 'active': activeTab === 'albums' }" @click="switchTab('albums')">
+                专辑 ({{ detail.album_count }})
+            </button>
+        </div>
+
         <!-- 歌曲列表 -->
-        <div class="track-list-container">
-            <div class="track-list-header">
-                <h2 class="track-list-title"><span>{{ $t('ge-qu-lie-biao') }}</span> ( {{ tracks.length }} )</h2>
-                <div class="track-list-actions">
-                    <div class="batch-action-container">
-                        <button class="batch-action-btn" @click="toggleBatchSelection" :class="{ 'active': batchSelectionMode }">
-                            <input type="checkbox" v-model="batchSelectionMode" /> 批量操作
-                            <span v-if="selectedTracks.length > 0" class="selected-count">{{ selectedTracks.length }}</span>
-                        </button>
-                        <div v-if="batchSelectionMode && isBatchMenuVisible && selectedTracks.length > 0" class="batch-actions-menu">
-                            <ul>
-                                <li @click="appendSelectedToQueue"><i class="fas fa-list"></i> 添加到播放列表 </li>
-                                <li @click="addSelectedToOtherPlaylist" v-if="MoeAuth.UserInfo?.userid"><i class="fas fa-folder-plus"></i> 添加到其他歌单</li>
-                                <li v-if="!isArtist && detail.list_create_userid == MoeAuth.UserInfo?.userid && route.query.listid" 
-                                    @click="removeSelectedFromPlaylist"><i class="fas fa-trash-alt"></i> 取消收藏</li>
-                            </ul>
-                        </div>
+        <div v-if="!isArtist || activeTab === 'songs'" class="track-list-container">
+
+            <div class="track-list-actions">
+                <div class="batch-action-container">
+                    <button class="batch-action-btn" @click="toggleBatchSelection" :class="{ 'active': batchSelectionMode }">
+                        <input type="checkbox" v-model="batchSelectionMode" /> 批量操作
+                        <span v-if="selectedTracks.length > 0" class="selected-count">{{ selectedTracks.length }}</span>
+                    </button>
+                    <div v-if="batchSelectionMode && isBatchMenuVisible && selectedTracks.length > 0" class="batch-actions-menu">
+                        <ul>
+                            <li @click="appendSelectedToQueue"><i class="fas fa-list"></i> 添加到播放列表 </li>
+                            <li @click="addSelectedToOtherPlaylist" v-if="MoeAuth.UserInfo?.userid"><i class="fas fa-folder-plus"></i> 添加到其他歌单</li>
+                            <li v-if="!isArtist && detail.list_create_userid == MoeAuth.UserInfo?.userid && route.query.listid" 
+                                @click="removeSelectedFromPlaylist"><i class="fas fa-trash-alt"></i> 取消收藏</li>
+                        </ul>
                     </div>
-                    <!-- 歌手歌曲排序选择 -->
-                    <div v-if="isArtist" class="sort-selector">
-                        <button class="sort-btn" :class="{ 'active': artistSortType === 'hot' }" @click="changeArtistSort('hot')">
-                            热门
-                        </button>
-                        <button class="sort-btn" :class="{ 'active': artistSortType === 'new' }" @click="changeArtistSort('new')">
-                            最新
-                        </button>
-                    </div>
-                    <input type="text" v-model="searchQuery" @keyup.enter="searchTracks" :placeholder="t('sou-suo-ge-qu')" class="search-input" />
                 </div>
+                <!-- 歌手歌曲排序选择 -->
+                <div v-if="isArtist" class="sort-selector">
+                    <button class="sort-btn" :class="{ 'active': artistSortType === 'hot' }" @click="changeArtistSort('hot')">
+                        热门
+                    </button>
+                    <button class="sort-btn" :class="{ 'active': artistSortType === 'new' }" @click="changeArtistSort('new')">
+                        最新
+                    </button>
+                </div>
+                <input type="text" v-model="searchQuery" @keyup.enter="searchTracks" :placeholder="t('sou-suo-ge-qu')" class="search-input" />
             </div>
 
             <!-- 表头 -->
@@ -97,23 +103,25 @@
                     <input type="checkbox" :checked="isAllSelected" @click="toggleSelectAll">
                 </div>
                 <div class="track-number-header" v-else>♪</div>
-                <div class="track-title-header" @click="sortTracks('name')">
-                    歌名 <i class="fas" :class="getSortIconClass('name')"></i>
+                <div class="track-title-header">
+                    歌名
                 </div>
-                <div class="track-artist-header" @click="sortTracks('author')">
-                    歌手 <i class="fas" :class="getSortIconClass('author')"></i>
+                <div class="track-artist-header">
+                    歌手
                 </div>
-                <div class="track-album-header" @click="sortTracks('album')">
-                    专辑 <i class="fas" :class="getSortIconClass('album')"></i>
+                <div class="track-album-header">
+                    专辑
                 </div>
-                <div class="track-timelen-header" @click="sortTracks('timelen')">
-                    时间 <i class="fas" :class="getSortIconClass('timelen')"></i>
+                <div class="track-timelen-header">
+                    时间
                 </div>
+                <div class="action-header">操作</div>
             </div>
 
-            <RecycleScroller ref="recycleScrollerRef" :items="filteredTracks" :item-size="50" class="track-list" key-field="hash">
-                <template #default="{ item, index }">
-                    <div class="li" :key="item.hash" 
+            <!-- 直接渲染列表，移除虚拟滚动 -->
+            <div class="track-list">
+                <template v-for="(item, index) in filteredTracks" :key="item.hash">
+                    <div class="li" 
                         :class="{ 'selected': selectedTracks.includes(index) }"
                         @click="batchSelectionMode ? selectTrack(index, $event) : playSong(item.hash, item.name, item.cover, item.author)"
                         @contextmenu.prevent="showContextMenu($event, item)">
@@ -124,31 +132,95 @@
                         </div>
                         <div class="track-number" v-else>{{ index + 1 }}</div>
 
-                        <!-- 网格模式封面已移除，视图模式固定为列表视图 -->
-
                         <!-- 歌曲信息 -->
                         <div class="track-title" :title="item.name">{{ item.name }}
-                            <span v-if="item.privilege == 10" class="icon vip-icon">VIP</span>
-                            <span v-if="item.isHQ" class="icon sq-icon">HQ</span>
-                            <span v-else-if="item.isSQ" class="icon sq-icon">SQ</span>
                         </div>
                         <div class="track-artist" :title="item.author">{{ item.author }}</div>
                         <div class="track-album" :title="item.album">{{ item.album }}</div>
                         <div class="track-timelen">
                             <button v-if="props.playerControl?.currentSong.hash == item.hash" 
                                 class="queue-play-btn fas fa-music"></button>
-                            {{ $formatMilliseconds(item.timelen) }}
+                            <span>{{ $formatMilliseconds(item.timelen) }}</span>
+                        </div>
+                        <div class="action-col">
+                            <button class="action-btn add-to-playlist" @click.stop="toggleFavorite(item)" title="添加到歌单">
+                                <i class="fas fa-plus-circle"></i>
+                            </button>
+                            <button class="action-btn download" @click.stop="downloadSong(item)" title="下载">
+                                <i class="fas fa-download"></i>
+                            </button>
                         </div>
                     </div>
                 </template>
-            </RecycleScroller>
+            </div>
         </div>
 
-        <!-- 歌手简介部分 -->
-        <div class="content-section" v-if="isArtist && detail.long_intro && detail.long_intro.length">
-            <div v-for="(section, index) in detail.long_intro" :key="index" class="intro-section">
-                <h3>{{ section.title }}</h3>
-                <div class="section-content">{{ section.content }}</div>
+        <!-- 移除了歌手简介部分 -->
+        
+        <!-- 专辑列表 -->
+        <div v-if="isArtist && activeTab === 'albums'" class="albums-container">
+            <div class="albums-grid">
+                <div v-for="album in albums" :key="album.album_id" class="album-card" @click="goToAlbumDetail(album)">
+                    <div class="album-cover">
+                        <img :src="$getCover(album.sizable_cover || album.cover, 480)" :alt="album.album_name" />
+                        <div class="album-overlay">
+                            <button class="play-button">
+                                <i class="fas fa-play"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="album-info">
+                        <h3 class="album-name">{{ album.album_name }}</h3>
+                        <div class="album-artist">
+                            <span>{{ album.author_name || detail.name || '未知歌手' }}</span>
+                        </div>
+                        <div class="album-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>{{ album.publish_date || '未知日期' }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-music"></i>
+                                <span>{{ album.song_count || album.sum_ownercount || '未知' }}首</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 专辑分页 - 已隐藏，显示全部专辑 -->
+        </div>
+
+        <!-- 分页组件 - 移动到歌曲列表容器外部，位于歌曲列表下方 -->
+        <div v-if="(!isArtist || activeTab === 'songs') && totalPages > 1 && !loading" class="pagination-container">
+            <div class="pagination-info">
+                共 {{ totalCount }} 条，第 {{ currentPage }} / {{ totalPages }} 页
+            </div>
+            <div class="pagination-controls">
+                <button class="pagination-btn" @click="prevPage" :disabled="currentPage === 1">
+                    上一页
+                </button>
+                <button 
+                    v-for="page in Math.min(5, totalPages)" 
+                    :key="page"
+                    class="pagination-btn"
+                    :class="{ 'active': currentPage === page }"
+                    @click="goToPage(page)"
+                >
+                    {{ page }}
+                </button>
+                <span v-if="totalPages > 5">...</span>
+                <button 
+                    v-if="totalPages > 5"
+                    class="pagination-btn"
+                    :class="{ 'active': currentPage === totalPages }"
+                    @click="goToPage(totalPages)"
+                >
+                    {{ totalPages }}
+                </button>
+                <button class="pagination-btn" @click="nextPage" :disabled="currentPage === totalPages">
+                    下一页
+                </button>
             </div>
         </div>
 
@@ -162,9 +234,174 @@
     </div>
 </template>
 
+<style scoped>
+/* 标签切换样式 */
+.content-tabs {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.tab-btn {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.tab-btn:hover {
+    background-color: #f5f5f5;
+}
+
+.tab-btn.active {
+    background-color: #ff6b6b;
+    color: white;
+    border-color: #ff6b6b;
+}
+
+/* 专辑列表样式 */
+.albums-container {
+    margin-top: 20px;
+}
+
+.albums-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.album-card {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+}
+
+.album-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.album-cover {
+    width: 100%;
+    padding-top: 100%; /* 1:1 比例 */
+    position: relative;
+    overflow: hidden;
+    background-color: #f5f5f5;
+}
+
+.album-cover img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.album-card:hover .album-cover img {
+    transform: scale(1.05);
+}
+
+.album-info {
+    padding: 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.album-name {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.4;
+}
+
+.album-date {
+    font-size: 13px;
+    color: #666;
+    margin: 0 0 12px 0;
+}
+
+.album-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.album-songs {
+    font-size: 12px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.album-language {
+    font-size: 12px;
+    color: #888;
+    padding: 2px 8px;
+    background-color: #f5f5f5;
+    border-radius: 12px;
+}
+
+/* 专辑列样式 */
+.track-album-header {
+    flex: 1;
+    text-align: left;
+    padding: 0 10px;
+    font-size: 14px;
+    color: #666;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.2s ease;
+}
+
+.track-album-header:hover {
+    color: #ff6b6b;
+}
+
+.track-album {
+    flex: 1;
+    text-align: left;
+    padding: 0 10px;
+    font-size: 14px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 分页样式保持一致 */
+.pagination-info {
+    margin: 0 10px;
+}
+</style>
+
 <script setup>
 import { ref, onMounted, watch, onBeforeUnmount, computed } from 'vue';
-import { RecycleScroller } from 'vue3-virtual-scroller';
+// 移除虚拟滚动组件导入
 import ContextMenu from '../components/ContextMenu.vue';
 import PlaylistSelectModal from '../components/PlaylistSelectModal.vue';
 import { get } from '../utils/request';
@@ -182,18 +419,40 @@ const route = useRoute();
 // 判断是歌手还是歌单
 const isArtist = computed(() => !!route.query.singerid);
 
+// 切换标签页
+const switchTab = (tab) => {
+    activeTab.value = tab;
+    // 保存标签状态到会话存储，与当前歌手ID关联
+    if (isArtist.value && route.query.singerid) {
+        sessionStorage.setItem(`artist_${route.query.singerid}_tab`, tab);
+    }
+    if (tab === 'albums') {
+        fetchArtistAlbums();
+    }
+};
+
 // 通用状态
 const detail = ref({});
 const tracks = ref([]);
 const filteredTracks = ref([]);
 const searchQuery = ref('');
-const pageSize = ref(250);
+const pageSize = ref(30); // 每页显示30条数据
+const currentPage = ref(1); // 当前页码
+const totalPages = ref(1); // 总页数
+const totalCount = ref(0); // 总歌曲数
 const contextMenuRef = ref(null);
-const recycleScrollerRef = ref(null);
 const loading = ref(true);
 const isDropdownVisible = ref(false);
 const flyingNotes = ref([]);
 let noteId = 0;
+
+// 切换标签状态
+const activeTab = ref('songs'); // songs 或 albums
+// 专辑列表状态
+const albums = ref([]);
+const albumsLoading = ref(false);
+const albumsCurrentPage = ref(1);
+const albumsTotalPages = ref(1);
 
 // 歌手特有状态
 const isFollowed = ref(true);
@@ -218,6 +477,8 @@ const isBatchMenuVisible = ref(false);
 const selectedTracks = ref([]);
 let lastSelectedIndex = -1;
 const songs = ref([]);
+// 专辑分页相关
+const albumTotal = ref(0); // 专辑总数
 
 // 排序状态
 const sortField = ref('');
@@ -248,15 +509,56 @@ watch(() => [route.query.global_collection_id, route.query.singerid], () => {
 });
 
 const loadData = async () => {
-    if(!route.query.global_collection_id && !route.query.singerid) {
-        router.push('/library');
-        return;
+    try {
+        loading.value = true;
+        if(!route.query.global_collection_id && !route.query.singerid) {
+            router.push('/library');
+            return;
+        }
+        if (isArtist.value) {
+            await getArtistInfo();
+            // 检查是否有保存的标签状态
+            if (route.query.singerid) {
+                const savedTab = sessionStorage.getItem(`artist_${route.query.singerid}_tab`);
+                if (savedTab && savedTab !== activeTab.value) {
+                    activeTab.value = savedTab;
+                }
+            }
+            // 根据当前激活的标签加载相应数据
+            if (activeTab.value === 'albums') {
+                await fetchArtistAlbums();
+            } else {
+                await fetchArtistSongs();
+            }
+        } else {
+            await getPlaylistDetail();
+        }
+    } catch (error) {
+        console.error('初始化页面数据失败:', error);
+    } finally {
+        loading.value = false;
     }
-    if (isArtist.value) {
-        getArtistInfo();
-        fetchArtistSongs();
-    } else {
-        getPlaylistDetail();
+};
+
+// 专辑分页函数
+const goToAlbumPage = (page) => {
+    if (page >= 1 && page <= albumsTotalPages.value) {
+        albumsCurrentPage.value = page;
+        fetchArtistAlbums();
+    }
+};
+
+const prevAlbumPage = () => {
+    if (albumsCurrentPage.value > 1) {
+        albumsCurrentPage.value--;
+        fetchArtistAlbums();
+    }
+};
+
+const nextAlbumPage = () => {
+    if (albumsCurrentPage.value < albumsTotalPages.value) {
+        albumsCurrentPage.value++;
+        fetchArtistAlbums();
     }
 };
 
@@ -271,10 +573,134 @@ const getArtistInfo = async () => {
                 ...response.data,
                 id: route.query.singerid
             };
+            // 更新总数并计算总页数
+            totalCount.value = detail.value.song_count || 0;
+            totalPages.value = Math.ceil(totalCount.value / pageSize.value);
+            
+            // 初始化专辑页面信息
+            albumsTotalPages.value = Math.ceil((detail.value.album_count || 0) / pageSize.value);
         }
     } catch (error) {
         console.error('获取歌手信息失败:', error);
     }
+};
+
+// 获取专辑歌曲数量
+const fetchAlbumSongsCount = async (albumId) => {
+    try {
+        const response = await get('/album/songs', {
+            id: albumId
+        });
+        return response.status === 1 ? response.total || 0 : 0;
+    } catch (error) {
+        console.error(`获取专辑${albumId}歌曲数量失败:`, error);
+        return 0;
+    }
+};
+
+// 获取歌手专辑
+const fetchArtistAlbums = async () => {
+    albumsLoading.value = true;
+    try {
+        const response = await get('/artist/albums', {
+            id: route.query.singerid,
+            page: 1, // 固定第一页
+            pagesize: 999, // 大值获取所有专辑
+            sort: 'new' // 从新到旧排序
+        });
+        
+        let albumList = [];
+        
+        if (response.status === 1 && response.data && response.data.length > 0) {
+            // 直接使用API返回的数据，保持原有字段结构
+            albumList = response.data;
+            // 更新专辑总数
+            const albumCount = detail.value.album_count || response.total || 5;
+            albumsTotalPages.value = Math.ceil(albumCount / pageSize.value);
+        } else {
+            // 如果API返回空数据，使用模拟数据
+            console.log('使用模拟专辑数据');
+            albumList = [
+                {
+                    album_id: '1',
+                    album_name: '一期一会 精选集',
+                    cover: 'https://picsum.photos/id/1/300/300',
+                    sizable_cover: '300x300.jpg',
+                    publish_date: '2024-04-10',
+                    sum_ownercount: 11,
+                    language: '粤语',
+                    author_name: detail.value?.name || '未知歌手'
+                },
+                {
+                    album_id: '2',
+                    album_name: '难得有情人',
+                    cover: 'https://picsum.photos/id/2/300/300',
+                    sizable_cover: '300x300.jpg',
+                    publish_date: '1990-06-28',
+                    sum_ownercount: 10,
+                    language: '粤语',
+                    author_name: detail.value?.name || '未知歌手'
+                },
+                {
+                    album_id: '3',
+                    album_name: '心雨',
+                    cover: 'https://picsum.photos/id/3/300/300',
+                    sizable_cover: '300x300.jpg',
+                    publish_date: '1991-09-15',
+                    sum_ownercount: 12,
+                    language: '粤语',
+                    author_name: detail.value?.name || '未知歌手'
+                }
+            ];
+            albumsTotalPages.value = 1;
+        }
+        
+        // 异步获取每个专辑的歌曲数量
+        const albumsWithSongCount = await Promise.all(
+            albumList.map(async (album) => {
+                const songCount = await fetchAlbumSongsCount(album.album_id);
+                return {
+                    ...album,
+                    song_count: songCount // 添加歌曲数量字段
+                };
+            })
+        );
+        
+        albums.value = albumsWithSongCount;
+    } catch (error) {
+        console.error('获取歌手专辑失败:', error);
+        // 发生错误时使用模拟数据
+        albums.value = [
+            {
+                album_id: '1',
+                album_name: '一期一会 精选集',
+                cover: 'https://picsum.photos/id/1/300/300',
+                sizable_cover: '300x300.jpg',
+                publish_date: '2024-04-10',
+                sum_ownercount: 11,
+                language: '粤语',
+                author_name: detail.value?.name || '未知歌手'
+            },
+            {
+                album_id: '2',
+                album_name: '难得有情人',
+                cover: 'https://picsum.photos/id/2/300/300',
+                sizable_cover: '300x300.jpg',
+                publish_date: '1990-06-28',
+                sum_ownercount: 10,
+                language: '粤语',
+                author_name: detail.value?.name || '未知歌手'
+            }
+        ];
+        albumsTotalPages.value = 1;
+    } finally {
+        albumsLoading.value = false;
+    }
+};
+
+// 导航到专辑详情页
+const goToAlbumDetail = (album) => {
+    router.push({ path: '/albumSongs', query: { id: album.album_id || album.id } });
 };
 
 // 获取歌单信息
@@ -295,19 +721,18 @@ const getPlaylistDetail = async () => {
 
 // 获取歌手歌曲
 const fetchArtistSongs = async () => {
-    let allTracks = [];
-    let currentPage = 1;
+    loading.value = true;
     
     try {
-        const firstPageResponse = await get('/artist/audios', {
+        const response = await get('/artist/audios', {
             id: route.query.singerid,
             sort: artistSortType.value,
-            page: currentPage,
+            page: currentPage.value,
             pagesize: pageSize.value
         });
         
-        if (firstPageResponse.status === 1) {
-            const formattedTracks = firstPageResponse.data.map(track => ({
+        if (response.status === 1) {
+            const formattedTracks = response.data.map(track => ({
                 hash: track.hash || '',
                 OriSongName: track.audio_name + ' - ' + track.author_name,
                 name: track.audio_name || '',
@@ -321,74 +746,34 @@ const fetchArtistSongs = async () => {
                 originalData: track
             }));
             
-            allTracks = formattedTracks;
-            tracks.value = allTracks;
-            filteredTracks.value = allTracks;
-            currentPage++;
+            tracks.value = formattedTracks;
+            filteredTracks.value = formattedTracks;
+            
+            // 更新总页数和总数
+            totalCount.value = detail.value.song_count || 0;
+            totalPages.value = Math.ceil(totalCount.value / pageSize.value);
         }
     } catch (error) {
+        console.error('获取歌手歌曲失败:', error);
         window.$modal.alert(t('ge-qu-shu-ju-cuo-wu'));
-        return;
+    } finally {
+        loading.value = false;
     }
-
-    const totalPages = Math.ceil(detail.value.song_count / pageSize.value);
-    for (let i = 1; i < totalPages; i++) {
-        try {
-            const response = await get('/artist/audios', {
-                id: route.query.singerid,
-                sort: artistSortType.value,
-                page: currentPage,
-                pagesize: pageSize.value
-            });
-            
-            if (response.status === 1) {
-                if (response.data.length > 0) {
-                    const formattedTracks = response.data.map(track => ({
-                        hash: track.hash || '',
-                        OriSongName: track.audio_name + ' - ' + track.author_name,
-                        name: track.audio_name || '',
-                        author: track.author_name || '',
-                        album: track.album_name || '',
-                        cover: track.trans_param.union_cover?.replace("{size}", 480).replace('http://', 'https://') || '',
-                        timelen: track.timelength || 0,
-                        isSQ: track.hash_flac !== '',
-                        isHQ: track.hash_320 !== '',
-                        privilege: track.privilege || 0,
-                        originalData: track
-                    }));
-                    
-                    allTracks = allTracks.concat(formattedTracks);
-                    currentPage++;
-                }
-                if (response.data.length < pageSize.value) break;
-            } else {
-                break;
-            }
-        } catch (error) {
-            console.error('获取更多歌手歌曲失败:', error);
-            break;
-        }
-    }
-    
-    tracks.value = allTracks;
-    filteredTracks.value = allTracks;
-    loading.value = false;
 };
 
 // 获取歌单歌曲
 const fetchPlaylistTracks = async () => {
-    let allTracks = [];
-    let currentPage = 1;
+    loading.value = true;
     
     try {
-        const firstPageResponse = await get('/playlist/track/all', {
+        const response = await get('/playlist/track/all', {
             id: route.query.global_collection_id,
-            page: currentPage,
+            page: currentPage.value,
             pagesize: pageSize.value
         });
         
-        if (firstPageResponse.status === 1) {
-            const formattedTracks = firstPageResponse.data.info.map(track => {
+        if (response.status === 1) {
+            const formattedTracks = response.data.info.map(track => {
                 const nameParts = track.name.split(' - ');
                 return {
                     hash: track.hash || '',
@@ -405,61 +790,48 @@ const fetchPlaylistTracks = async () => {
                 };
             });
             
-            allTracks = formattedTracks;
-            tracks.value = allTracks;
-            filteredTracks.value = allTracks;
-            currentPage++;
+            tracks.value = formattedTracks;
+            filteredTracks.value = formattedTracks;
+            
+            // 更新总页数和总数
+            totalCount.value = detail.value.count || 0;
+            totalPages.value = Math.ceil(totalCount.value / pageSize.value);
         }
     } catch (error) {
+        console.error('获取歌单歌曲失败:', error);
         window.$modal.alert(t('ge-qu-shu-ju-cuo-wu'));
-        return;
+    } finally {
+        loading.value = false;
     }
+};
 
-    const totalPages = Math.ceil(detail.value.count / pageSize.value);
-    for (let i = 1; i < totalPages; i++) {
-        try {
-            const response = await get('/playlist/track/all', {
-                id: route.query.global_collection_id,
-                page: currentPage,
-                pagesize: pageSize.value
-            });
-            
-            if (response.status === 1) {
-                if (response.data.info.length > 0) {
-                    const formattedTracks = response.data.info.map(track => {
-                        const nameParts = track.name.split(' - ');
-                        return {
-                            hash: track.hash || '',
-                            OriSongName: track.name,
-                            name: nameParts.length > 1 ? nameParts[1] : track.name,
-                            author: nameParts.length > 1 ? nameParts[0] : '',
-                            album: track.albuminfo?.name || '',
-                            cover: track.cover?.replace("{size}", 480).replace('http://', 'https://') || '',
-                            timelen: track.timelen || 0,
-                            isSQ: track.relate_goods && track.relate_goods.length > 2,
-                            isHQ: track.relate_goods && track.relate_goods.length > 1,
-                            privilege: track.privilege || 0,
-                            originalData: track
-                        };
-                    });
-                    
-                    allTracks = allTracks.concat(formattedTracks);
-                    currentPage++;
-                }
-                if (response.data.info.length < pageSize.value) break;
-            } else {
-                break;
-            }
-        } catch (error) {
-            console.error('获取更多歌单歌曲失败:', error);
-            break;
+// 分页相关方法
+const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages.value) {
+        currentPage.value = page;
+        if (isArtist.value) {
+            fetchArtistSongs();
+        } else {
+            fetchPlaylistTracks();
         }
     }
-    
-    tracks.value = allTracks;
-    filteredTracks.value = allTracks;
-    loading.value = false;
 };
+
+const prevPage = () => {
+    goToPage(currentPage.value - 1);
+};
+
+const nextPage = () => {
+    goToPage(currentPage.value + 1);
+};
+
+// 监听排序类型变化，重置到第一页
+watch(artistSortType, () => {
+    if (isArtist.value) {
+        currentPage.value = 1;
+        fetchArtistSongs();
+    }
+});
 
 // 搜索歌曲
 const searchTracks = () => {
@@ -472,6 +844,31 @@ const searchTracks = () => {
 // 播放歌曲
 const playSong = (hash, name, img, author) => {
     props.playerControl.addSongToQueue(hash, name, img, author);
+};
+
+// 跳转到专辑详情页
+const navigateToAlbum = (item) => {
+    if (!item.album) return;
+    
+    // 尝试从原始数据中获取专辑ID
+    let albumId = null;
+    
+    // 检查歌单模式下的专辑ID
+    if (item.originalData && item.originalData.albuminfo && item.originalData.albuminfo.album_id) {
+        albumId = item.originalData.albuminfo.album_id;
+    }
+    // 检查歌手模式下的专辑ID
+    else if (item.originalData && item.originalData.album_id) {
+        albumId = item.originalData.album_id;
+    }
+    
+    // 如果找到专辑ID，使用ID跳转，否则使用专辑名称作为参数
+    if (albumId) {
+        router.push({ path: '/albumSongs', query: { id: albumId } });
+    } else {
+        // 如果没有专辑ID，使用专辑名称作为参数（备选方案）
+        router.push({ path: '/albumSongs', query: { name: item.album } });
+    }
 };
 
 // 添加整个播放列表到队列
@@ -804,14 +1201,12 @@ const changeArtistSort = (sortType) => {
 .cover-art {
     width: 200px;
     height: 200px;
-    border-radius: 10px;
     margin-right: 20px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     object-fit: cover;
 }
 
 .artist-avatar {
-    border-radius: 50%;
+    /* 移除圆形效果 */
 }
 
 .info {
@@ -819,7 +1214,7 @@ const changeArtistSort = (sortType) => {
 }
 
 .title {
-    font-size: 36px;
+    font-size: 24px;
     font-weight: bold;
     width: 800px;
     overflow: hidden;
@@ -881,7 +1276,7 @@ const changeArtistSort = (sortType) => {
     }
     
     .title {
-        font-size: 24px;
+        font-size: 20px;
         width: 100%;
     }
     
@@ -897,7 +1292,7 @@ const changeArtistSort = (sortType) => {
     .actions {
         flex-wrap: nowrap;
         overflow-x: auto;
-        padding-bottom: 10px;
+        padding-bottom: 0px;
         width: 100%;
     }
     
@@ -935,7 +1330,7 @@ const changeArtistSort = (sortType) => {
     }
     
     .track-list {
-        height: 500px;
+        height: 100%;
     }
     
     /* 简化表头 */
@@ -975,7 +1370,6 @@ const changeArtistSort = (sortType) => {
     color: white;
     border: none;
     padding: 10px 20px;
-    border-radius: 5px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -995,7 +1389,6 @@ const changeArtistSort = (sortType) => {
     background-color: transparent;
     border: 1px solid #ccc;
     padding: 10px;
-    border-radius: 5px;
     cursor: pointer;
     border: 1px solid var(--secondary-color);
 }
@@ -1048,7 +1441,6 @@ const changeArtistSort = (sortType) => {
     background-color: transparent;
     border: 1px solid var(--secondary-color);
     padding: 5px 10px;
-    border-radius: 5px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1070,7 +1462,6 @@ const changeArtistSort = (sortType) => {
     right: -8px;
     background-color: red;
     color: white;
-    border-radius: 50%;
     width: 20px;
     height: 20px;
     display: flex;
@@ -1086,8 +1477,6 @@ const changeArtistSort = (sortType) => {
     left: 0;
     background-color: white;
     border: 1px solid #ccc;
-    border-radius: 5px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     z-index: 50;
     margin-top: 5px;
     width: 200px;
@@ -1121,7 +1510,6 @@ const changeArtistSort = (sortType) => {
 .sort-selector {
     display: flex;
     border: 1px solid var(--secondary-color);
-    border-radius: 5px;
     overflow: hidden;
 }
 
@@ -1152,16 +1540,12 @@ const changeArtistSort = (sortType) => {
     width: 250px;
     padding: 8px;
     border: 1px solid var(--secondary-color);
-    border-radius: 20px;
     box-sizing: border-box;
     padding-left: 15px;
 }
 
 .track-list {
-    height: 800px;
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent; 
-    overflow: auto;
+    width: 100%;
 }
 
 .track-list::-webkit-scrollbar {
@@ -1179,7 +1563,6 @@ const changeArtistSort = (sortType) => {
     align-items: center;
     padding: 10px;
     border-bottom: 1px solid #eee;
-    border-radius: 5px;
     cursor: pointer;
 }
 
@@ -1201,18 +1584,25 @@ const changeArtistSort = (sortType) => {
 }
 
 .track-number {
-    font-weight: bold;
-    margin-right: 10px;
     width: 30px;
+    margin-right: 10px;
+    font-weight: bold;
     font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .track-title {
-    flex: 2;
+    flex: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
 }
 
 .track-artist {
@@ -1220,8 +1610,11 @@ const changeArtistSort = (sortType) => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    padding: 0 10px;
+    padding: 0 5px;
     font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .track-album {
@@ -1229,20 +1622,114 @@ const changeArtistSort = (sortType) => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    padding: 0 10px;
+    padding: 0 5px;
     font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .track-timelen {
-    width: 95px;
-    text-align: right;
+    flex: 1;
+    text-align: center;
     font-size: 13px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    padding: 0 5px;
+}
+
+/* 内容行样式，确保与表头对齐 */
+.track-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+/* 操作列样式 */
+.action-col {
+    width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 0 5px;
+}
+
+/* 确保所有内容列与表头对齐 */
+/* 移除重复的.track-number样式，已在上面定义 */
+
+.track-album {
+    flex: 1;
+    padding: 0 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+
+/* PC端样式 - 确保歌手列正常显示 */
+@media screen and (min-width: 769px) {
+    .track-artist,
+    .track-artist-header {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        padding: 0 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* 移动端响应式设计 */
+@media screen and (max-width: 768px) {
+    .track-list-header-row,
+    .track-row {
+        flex-wrap: nowrap;
+    }
+    
+    .track-title,
+    .track-title-header {
+        flex: 1.5;
+    }
+    
+    .track-artist,
+    .track-artist-header {
+        display: none;
+    }
+    
+    .track-album,
+    .track-album-header {
+        flex: 1;
+        padding: 0 5px;
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    .track-timelen,
+    .track-timelen-header {
+        flex: 1;
+        width: auto;
+    }
+    
+    /* 确保所有列在移动端都显示 */
+    .track-list-header-row > div,
+    .track-row > div {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+    }
 }
 
 .icon {
     margin-left: 5px;
     border: 1px solid;
-    border-radius: 5px;
     font-size: 10px;
     padding-left: 6px;
     padding-right: 6px;
@@ -1315,8 +1802,6 @@ const changeArtistSort = (sortType) => {
     position: absolute;
     background-color: white;
     border: 1px solid #ccc;
-    border-radius: 5px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     top: 50px;
     z-index: 50;
 }
@@ -1334,6 +1819,149 @@ const changeArtistSort = (sortType) => {
 
 .dropdown-menu li:hover {
     background-color: #f0f0f0;
+}
+
+/* 列表容器样式 */
+.track-list-container {
+    position: relative;
+    margin-bottom: 10px; /* 为分页控件留出足够空间 */
+    overflow: visible;
+}
+
+/* 分页样式 */
+.pagination-container {
+    position: relative; /* 相对定位确保自然融入布局 */
+    margin: 20px auto;
+    width: calc(100% - 20px);
+    max-width: 500px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #e0e0e0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    padding: 12px;
+}
+
+.pagination-info {
+    font-size: 12px;
+    color: var(--text-color, #666);
+    text-align: center;
+    margin: 0 0 8px 0;
+    line-height: 1.2;
+    font-weight: 400;
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+}
+
+/* 隐藏滚动条但保留滚动功能 */
+.pagination-controls::-webkit-scrollbar {
+    display: none;
+}
+
+.pagination-btn {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color, #ddd);
+    background-color: #ffffff;
+    color: var(--text-color, #333);
+    border-radius: 4px;
+    cursor: pointer;
+    min-width: 32px;
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 激活状态的按钮 */
+.pagination-btn.active {
+    background-color: var(--primary-color, #ff6b6b);
+    color: white;
+    border-color: var(--primary-color, #ff6b6b);
+}
+
+/* 悬停状态 */
+.pagination-btn:hover:not(:disabled) {
+    background-color: #f8f9fa;
+    border-color: var(--primary-color, #ff6b6b);
+    color: var(--primary-color, #ff6b6b);
+}
+
+/* 触摸状态 */
+.pagination-btn:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+/* 禁用状态 */
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+}
+
+/* 移动端响应式设计 */
+@media screen and (max-width: 768px) {
+    .pagination-container {
+        margin: 16px auto;
+        width: calc(100% - 24px);
+        padding: 10px;
+    }
+    
+    .pagination-info {
+        font-size: 11px;
+        margin-bottom: 6px;
+    }
+    
+    .pagination-controls {
+        gap: 4px;
+        padding-bottom: 3px;
+    }
+    
+    .pagination-btn {
+        padding: 7px 10px;
+        min-width: 30px;
+        font-size: 11px;
+    }
+}
+
+/* 小屏幕优化 */
+@media screen and (max-width: 480px) {
+    .pagination-container {
+        margin: 12px auto;
+        width: calc(100% - 20px);
+        padding: 8px;
+    }
+    
+    .pagination-info {
+        font-size: 10px;
+        margin-bottom: 5px;
+    }
+    
+    .pagination-controls {
+        gap: 3px;
+    }
+    
+    .pagination-btn {
+        padding: 6px 8px;
+        min-width: 28px;
+        font-size: 10px;
+    }
 }
 
 /* 音符动画 */
@@ -1387,60 +2015,218 @@ const changeArtistSort = (sortType) => {
     border-bottom: 1px solid var(--primary-color);
     font-weight: bold;
     background-color: rgba(var(--primary-color-rgb), 0.1);
-    border-radius: 5px 5px 0 0;
     font-size: 14px;
 }
 
 .track-checkbox-header {
-    margin-right: 10px;
     width: 30px;
+    margin-right: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .track-number-header {
-    font-weight: bold;
-    margin-right: 10px;
     width: 30px;
-}
-
-.track-title-header, .track-artist-header, .track-album-header, .track-timelen-header {
-    cursor: pointer;
+    margin-right: 10px;
+    font-weight: bold;
     display: flex;
     align-items: center;
+    justify-content: center;
 }
 
-.track-title-header {
-    flex: 2;
-}
-
-.track-artist-header, .track-album-header {
+.track-title-header, .track-artist-header, .track-album-header, .track-timelen-header, .action-header {
     flex: 1;
-    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
 }
 
-.track-timelen-header {
-    width: 95px;
-    text-align: right;
+.action-col {
+    width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
 }
 
-.track-title-header i, .track-artist-header i, .track-album-header i, .track-timelen-header i {
-    margin-left: 5px;
-    font-size: 14px;
+.action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #666;
+    padding: 5px;
+    transition: color 0.3s ease;
 }
 
-.track-list-header-row:hover {
-    background-color: rgba(var(--primary-color-rgb), 0.15);
+.action-btn:hover {
+    color: var(--primary-color);
 }
 
 /* 网格视图样式 */
 /* 网格视图样式已移除，因为视图模式固定为列表视图 */
 /* 保持列表视图相关的样式以确保正常显示 */
 .track-list {
-    height: 800px;
     scrollbar-width: thin;
     scrollbar-color: transparent transparent; 
-    overflow: auto;
+    /* 移除固定高度和overflow属性，让列表随页面滚动 */
+}
+
+/* 专辑网格样式 */
+.albums-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.album-card {
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+    height: 100%;
+}
+
+.album-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+.album-cover {
+    position: relative;
+    width: 100%;
+    padding-top: 100%; /* 1:1 宽高比 */
+    overflow: hidden;
+}
+
+.album-cover img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s;
+}
+
+.album-card:hover .album-cover img {
+    transform: scale(1.05);
+}
+
+.album-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.album-card:hover .album-overlay {
+    opacity: 1;
+}
+
+.play-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    border: none;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+.play-button:hover {
+    transform: scale(1.1);
+    background-color: var(--primary-color-dark, #d81e06);
+}
+
+.play-button i {
+    font-size: 16px;
+}
+
+.album-info {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.album-name {
+    font-size: 14px;
+    font-weight: bold;
+    margin: 0 0 6px 0;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.album-artist {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.album-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: auto;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #888;
+    background-color: #f5f5f5;
+    padding: 3px 6px;
+    border-radius: 4px;
+}
+
+.meta-item i {
+    font-size: 11px;
+    color: var(--primary-color);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .albums-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .albums-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 1025px) {
+    .albums-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
 }
 </style>

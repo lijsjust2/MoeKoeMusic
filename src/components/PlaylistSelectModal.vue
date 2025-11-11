@@ -62,6 +62,12 @@ const validateUserAndSong = () => {
 
 const fetchPlaylists = async () => {
     try {
+        // 验证用户是否已登录
+        if (!validateUserAndSong()) {
+            isOpen.value = false;
+            return;
+        }
+        
         const playlistResponse = await get('/user/playlist', {
             pagesize: 100
         });
@@ -69,11 +75,20 @@ const fetchPlaylists = async () => {
             $message.error(t('huo-qu-ge-dan-shi-bai'));
             return;
         }
+        
+        // 只显示用户自己创建的歌单，并排除系统默认歌单
         playlists.value = playlistResponse.data.info.filter(
-            playlist => playlist.list_create_userid === MoeAuth.UserInfo.userid
+            playlist => 
+                playlist.list_create_userid === MoeAuth.UserInfo.userid &&
+                playlist.name !== '默认收藏' &&
+                playlist.name !== '我喜欢' &&
+                playlist.name !== '本地' &&
+                playlist.name !== '我的云盘'
         );
+        
         isOpen.value = true;
     } catch (error) {
+        console.error('获取歌单失败:', error);
         $message.error(t('huo-qu-ge-dan-shi-bai'));
         isOpen.value = false;
     }

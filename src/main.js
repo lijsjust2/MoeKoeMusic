@@ -10,6 +10,19 @@ import i18n from './utils/i18n';
 import '@/assets/themes/dark.css';
 import { registerSW } from 'virtual:pwa-register'
 
+// 初始化API服务器设置
+let settings = {};
+try {
+    const savedSettings = localStorage.getItem('settings');
+    if (savedSettings) {
+        settings = JSON.parse(savedSettings);
+    }
+} catch (error) {
+    console.error('初始化API服务器设置失败:', error);
+    // 如果解析失败，设置空配置，让request.js中的默认设置生效
+    localStorage.setItem('settings', JSON.stringify({}));
+}
+
 const app = createApp(App);
 const pinia = createPinia();
 pinia.use(piniaPersistedstate);
@@ -32,16 +45,14 @@ window.addEventListener('unhandledrejection', event => {
   // window.$modal.alert('系统错误');
 });
 
-if (!window.electron) {
-  registerSW({
-    onNeedRefresh() {
-      console.log('有新内容可用，请刷新页面')
-    },
-    onOfflineReady() {
-      console.log('应用已准备好离线工作')
-    }
-  })
-}
+registerSW({
+  onNeedRefresh() {
+    console.log('有新内容可用，请刷新页面')
+  },
+  onOfflineReady() {
+    console.log('应用已准备好离线工作')
+  }
+})
 
 app.use(pinia);
 app.use(router);

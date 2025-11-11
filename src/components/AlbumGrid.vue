@@ -36,6 +36,8 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router';
+
 const props = defineProps({
   albums: {
     type: Array,
@@ -44,10 +46,19 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['album-click']);
+const router = useRouter();
 
 const onAlbumClick = (album) => {
-  emit('album-click', album);
+  // 尝试使用不同可能的专辑ID属性名
+  const albumId = album.id || album.albumid || album.album_id || album.albumId;
+  if (albumId) {
+    router.push({
+      path: '/albumSongs',
+      query: { id: albumId }
+    });
+  } else {
+    console.error('找不到专辑ID:', album);
+  }
 };
 </script>
 

@@ -25,11 +25,12 @@ const getBrowserLocale = () => {
   return Object.keys(messages).includes(lang) ? lang : 'ja';
 };
 
-const defaultLocale = JSON.parse(localStorage.getItem('settings'))?.['language'] || getBrowserLocale();
+// 默认使用中文，同时保留用户设置的优先级
+const defaultLocale = JSON.parse(localStorage.getItem('settings'))?.['language'] || 'zh-CN';
 
 const i18n = createI18n({
   locale: defaultLocale,
-  fallbackLocale: 'ja',
+  fallbackLocale: 'zh-CN', // 改为中文作为后备语言
   messages,
 });
 
