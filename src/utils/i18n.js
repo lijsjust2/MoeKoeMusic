@@ -9,12 +9,13 @@ const messages = {
 // 总是返回简体中文
 const getBrowserLocale = () => 'zh-CN';
 
-// 始终使用中文作为默认语言
-const defaultLocale = 'zh-CN';
+// 默认使用中文，同时保留用户设置的优先级
+const defaultLocale = JSON.parse(localStorage.getItem('settings'))?.['language'] || 'zh-CN';
 
 const i18n = createI18n({
   locale: defaultLocale,
-  fallbackLocale: 'zh-CN', // 改为中文作为后备语言
+  fallbackLocale: 'zh-CN',
+
   messages,
 });
 
