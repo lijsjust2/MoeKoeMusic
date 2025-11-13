@@ -299,6 +299,7 @@ import QualitySelectModal from './QualitySelectModal.vue';
 import { useRouter } from 'vue-router';
 import { getCover, share } from '../utils/utils';
 import { get } from '../utils/request';
+import { MoeAuthStore } from '../stores/store';
 
 // 从统一入口导入所有模块
 import {
@@ -376,6 +377,9 @@ const lyricsFlag = ref(false);
 // 辅助函数
 const { isElectron, throttle, getVip, desktopLyrics } = useHelpers(t);
 
+// 获取默认下载音质
+// 默认下载音质函数已移至文件底部
+
 // 打开音质选择模态框
 const openQualityModal = () => {
     if (!currentSong.value || !currentSong.value.hash) {
@@ -390,10 +394,119 @@ const openQualityModal = () => {
         return;
     }
     
-    showQualityModal.value = true;
+    // 获取默认下载音质（数字格式），直接下载而不显示弹窗
+    const defaultQuality = getDefaultDownloadQualityAsNumber();
+    
+    // 根据默认音质获取对应的音质信息
+    let qualityInfo;
+    if (defaultQuality === 999) {
+        qualityInfo = { label: '无损音质 (FLAC)', quality: 'flac', url: '' };
+    } else if (defaultQuality === 320) {
+        qualityInfo = { label: '高音质 (320K)', quality: '320', url: '' };
+    } else {
+        qualityInfo = { label: '普通音质 (128K)', quality: '128', url: '' };
+    }
+    
+    // 直接下载歌曲，不显示弹窗
+    downloadSongWithDefaultQuality(qualityInfo);
 };
 
-// 下载歌曲函数（根据选择的音质）
+// 根据默认音质下载歌曲
+const downloadSongWithDefaultQuality = async (qualityInfo) => {
+    if (!currentSong.value || !currentSong.value.hash) {
+        console.error('[PlayerControl] 缺少下载必要信息');
+        window.$modal.alert(t('xia-zai-shi-bai'));
+        return;
+    }
+
+    try {
+        // 获取MoeAuth实例
+        const MoeAuth = typeof MoeAuthStore === 'function' ? MoeAuthStore() : { isAuthenticated: false };
+        
+        // 根据QualitySelectModal中的参数格式构建请求数据
+        const data = {
+            hash: currentSong.value.hash,
+            quality: qualityInfo.quality
+        };
+        
+        // 未登录用户添加free_part参数
+        if (!MoeAuth.isAuthenticated) {
+            data.free_part = 1;
+        }
+        
+        // 获取下载链接
+        const response = await get('/song/url', data);
+        
+        // 检查响应格式，使用与QualitySelectModal相同的解析方式
+        let downloadUrl = null;
+        
+        if (response.status === 1 && response.url && Array.isArray(response.url)) {
+            downloadUrl = response.url[0];
+        } else if (response.data && response.data.data) {
+            // 兼容其他可能的响应格式
+            if (response.data.data.url) {
+                downloadUrl = response.data.data.url;
+            } else if (Array.isArray(response.data.data) && response.data.data[0]?.url) {
+                downloadUrl = response.data.data[0].url;
+            } else if (response.data.data.list && response.data.data.list[0]?.url) {
+                downloadUrl = response.data.data.list[0].url;
+            } else if (response.data.data.audio_data && response.data.data.audio_data.url) {
+                downloadUrl = response.data.data.audio_data.url;
+            }
+        }
+        
+        if (!downloadUrl) {
+            console.error('[PlayerControl] 无法获取下载链接:', response);
+            throw new Error('无法获取下载链接');
+        }
+
+        console.log(`[PlayerControl] 开始下载歌曲 (${qualityInfo.label}):`, currentSong.value.name);
+        
+        // 使用fetch API获取文件blob，确保强制下载而不是播放
+        const fetchResponse = await fetch(downloadUrl);
+        if (!fetchResponse.ok) {
+            throw new Error('Network response was not ok');
+        }
+        
+        const blob = await fetchResponse.blob();
+        console.log('[PlayerControl] 成功获取文件blob，大小:', blob.size);
+        
+        // 创建blob URL
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // 创建下载链接
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        
+        // 设置文件名，包含音质信息，避免特殊字符
+        let fileName = `${currentSong.value.name} - ${currentSong.value.author} (${qualityInfo.label}).${getExtensionByQuality(qualityInfo.quality)}`;
+        fileName = fileName.replace(/[<>"/\|?*:]/g, '_'); // 替换Windows文件名中的非法字符
+        
+        link.download = fileName;
+        link.target = '_blank'; // 确保在新标签中打开，不会干扰当前页面
+        
+        // 触发下载
+        document.body.appendChild(link);
+        
+        // 使用setTimeout确保DOM操作完成
+        setTimeout(() => {
+            link.click();
+            // 清理
+            document.body.removeChild(link);
+            // 延迟释放blob URL，确保下载完成
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        }, 0);
+        
+        console.log('[PlayerControl] 歌曲下载已触发:', fileName);
+        window.$modal.alert(t('xia-zai-yi-chu-fa'));
+        
+    } catch (error) {
+        console.error('[PlayerControl] 下载歌曲失败:', error);
+        window.$modal.alert(t('xia-zai-shi-bai'));
+    }
+};
+
+// 下载歌曲函数（根据选择的音质）- 保留用于其他地方的调用
 const downloadSong = async (qualityInfo) => {
     if (!currentSong.value || !qualityInfo.url) {
         console.error('[PlayerControl] 缺少下载必要信息');
@@ -447,6 +560,32 @@ const downloadSong = async (qualityInfo) => {
     }
 };
 
+// 获取默认下载音质设置（数字格式）
+const getDefaultDownloadQualityAsNumber = () => {
+    try {
+        // 优先从settings中获取下载音质设置
+        const settings = JSON.parse(localStorage.getItem('settings') || '{}');
+        if (settings.downloadQuality !== undefined) {
+            const qualityNum = parseInt(settings.downloadQuality, 10);
+            return isNaN(qualityNum) ? 128 : qualityNum;
+        }
+        
+        // 兼容旧的直接存储方式
+        const savedQuality = localStorage.getItem('defaultDownloadQuality');
+        if (savedQuality) {
+            const qualityNum = parseInt(savedQuality, 10);
+            return isNaN(qualityNum) ? 128 : qualityNum;
+        }
+        
+        // 默认返回128K
+        return 128;
+    } catch (error) {
+        console.error('获取默认下载音质设置失败:', error);
+        // 发生错误时返回默认值
+        return 128;
+    }
+};
+
 // 根据音质获取文件扩展名
 const getExtensionByQuality = (quality) => {
     if (quality === 'flac') return 'flac';
@@ -454,8 +593,68 @@ const getExtensionByQuality = (quality) => {
 };
 
 // 处理音质选择事件
-const handleQualitySelected = (qualityInfo) => {
-    downloadSong(qualityInfo);
+const handleQualitySelected = async (qualityInfo) => {
+    if (!currentSong.value || !currentSong.value.hash) {
+        console.error('[PlayerControl] 缺少下载必要信息');
+        window.$modal.alert(t('xia-zai-shi-bai'));
+        return;
+    }
+
+    try {
+        // 获取MoeAuth实例
+        const MoeAuth = typeof MoeAuthStore === 'function' ? MoeAuthStore() : { isAuthenticated: false };
+        
+        // 根据QualitySelectModal中的参数格式构建请求数据
+        const data = {
+            hash: currentSong.value.hash,
+            quality: qualityInfo.quality || qualityInfo.value
+        };
+        
+        // 未登录用户添加free_part参数
+        if (!MoeAuth.isAuthenticated) {
+            data.free_part = 1;
+        }
+        
+        // 获取下载链接
+        const response = await get('/song/url', data);
+        
+        // 检查响应格式，使用与QualitySelectModal相同的解析方式
+        let downloadUrl = null;
+        
+        if (response.status === 1 && response.url && Array.isArray(response.url)) {
+            downloadUrl = response.url[0];
+        } else if (response.data && response.data.data) {
+            // 兼容其他可能的响应格式
+            if (response.data.data.url) {
+                downloadUrl = response.data.data.url;
+            } else if (Array.isArray(response.data.data) && response.data.data[0]?.url) {
+                downloadUrl = response.data.data[0].url;
+            } else if (response.data.data.list && response.data.data.list[0]?.url) {
+                downloadUrl = response.data.data.list[0].url;
+            } else if (response.data.data.audio_data && response.data.data.audio_data.url) {
+                downloadUrl = response.data.data.audio_data.url;
+            }
+        }
+        
+        if (!downloadUrl) {
+            console.error('[PlayerControl] 无法获取下载链接:', response);
+            throw new Error('无法获取下载链接');
+        }
+
+        // 使用修改后的qualityInfo对象，包含正确的URL
+        const updatedQualityInfo = {
+            ...qualityInfo,
+            url: downloadUrl,
+            label: qualityInfo.label || `${qualityInfo.value}K`
+        };
+        
+        // 调用下载函数
+        downloadSong(updatedQualityInfo);
+        
+    } catch (error) {
+        console.error('[PlayerControl] 获取下载链接失败:', error);
+        window.$modal.alert(t('xia-zai-shi-bai'));
+    }
 };
 
 // Easter Egg 相关

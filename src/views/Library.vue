@@ -14,6 +14,7 @@
                         <div class="user-actions" style="display: flex; justify-content: center;">
                             <span class="action-button" @click="signIn">{{ $t('qian-dao') }}</span>
                             <span class="action-button" @click="getVip">VIP</span>
+                            <span class="action-button" @click="goToSettings">设置</span>
                         </div>
                     </div>
                 </div>
@@ -449,6 +450,10 @@ const getVip = async () => {
     } catch (error) {
         window.$modal.alert('获取VIP失败, 一天仅限一次');
     }
+}
+
+const goToSettings = () => {
+    router.push('/settings');
 }
 
 </script>

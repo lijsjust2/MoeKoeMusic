@@ -8,7 +8,7 @@
 module.exports = (params, useAxios) => {
   const quality = ['piano', 'acappella', 'subwoofer', 'ancient', 'dj', 'surnay'].includes(params.quality)
     ? `magic_${params?.quality}`
-    : params.quality;
+    : params.quality === 999 || params.quality === '999' ? 'flac' : params.quality;
 
   const dataMap = {
     album_audio_id: Number(params.album_audio_id ?? 0),

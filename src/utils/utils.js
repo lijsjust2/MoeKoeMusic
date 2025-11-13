@@ -140,5 +140,9 @@ export const openRegisterUrl = (registerUrl) => {
 export const share = (linkUrl) => {
     let encodeString = (window.electron?'moekoe://':window.location.host+'/#/')+linkUrl;
     navigator.clipboard.writeText(encodeString);
-    $message.success(i18n.global.t('kou-ling-yi-fu-zhi,kuai-ba-ge-qu-fen-xiang-gei-peng-you-ba'));
+    if (window.$message) {
+        window.$message.success(i18n.global.t('kou-ling-yi-fu-zhi,kuai-ba-ge-qu-fen-xiang-gei-peng-you-ba'));
+    } else {
+        console.log(i18n.global.t('kou-ling-yi-fu-zhi,kuai-ba-ge-qu-fen-xiang-gei-peng-you-ba'));
+    }
 }

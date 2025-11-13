@@ -9,8 +9,7 @@
         </div>
         <div class="modal-content">
           <div class="song-info">
-            <div class="song-title">{{ batchSelectionMode ? `${selectedTracks.length} 首歌曲` : currentDownloadSong ? getSongName(currentDownloadSong) : '' }}</div>
-            <div class="song-artist">{{ batchSelectionMode ? '批量下载' : currentDownloadSong ? getAuthorName(currentDownloadSong) : '' }}</div>
+            
           </div>
           <div class="quality-options">
             <div class="quality-item" @click="selectQuality('flac')">
@@ -62,7 +61,7 @@
               <ul>
                 <li @click="appendSelectedToQueue"><i class="fas fa-plus"></i> 添加到播放列表</li>
                 <li @click="addSelectedToOtherPlaylist"><i class="fas fa-list"></i> 添加到歌单</li>
-                <li @click="downloadSelectedSongs"><i class="fas fa-download"></i> 批量下载</li>
+                
               </ul>
             </div>
           </div>
@@ -119,7 +118,7 @@
                   <button class="action-btn add-to-playlist" @click.stop="handleFavoriteSong(song)" title="添加到歌单">
                     <i class="fas fa-plus-circle"></i>
                   </button>
-                  <button class="action-btn download" @click.stop="handleDownloadSong(song)" title="下载">
+                  <button class="action-btn download" title="下载" @click.stop="downloadSong(song)">
                     <i class="fas fa-download"></i>
                   </button>
                 </td>
@@ -135,12 +134,14 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { get } from '../utils/request';
+import { get, post } from '../utils/request';
 import { useMusicQueueStore } from '../stores/musicQueue';
 import useSongQueue from '../components/player/SongQueue';
 import i18n from '../utils/i18n';
 import { MoeAuthStore } from '../stores/store';
 import { useI18n } from 'vue-i18n';
+// 直接导入getCover函数，避免使用全局$getCover
+import { getCover } from '../utils/utils';
 // 移除音质选择弹窗组件，暂时不使用音质选择功能
 
 const { t } = useI18n();
@@ -172,11 +173,24 @@ const selectedTracks = ref([]);
 const lastSelectedIndex = ref(-1);
 const isBatchMenuVisible = ref(false);
 
+
+
 // 下载相关状态
 const songsToDownload = ref([]);
-const currentDownloadQuality = ref('320');
+const currentDownloadQuality = ref('128'); // 默认128K
 const showQualityModal = ref(false);
 const currentDownloadSong = ref(null);
+
+// 获取默认下载音质设置
+const getDefaultDownloadQuality = () => {
+  try {
+    const savedSettings = JSON.parse(localStorage.getItem('settings'));
+    return savedSettings?.downloadQuality?.toString() || '128';
+  } catch (error) {
+    console.error('获取默认下载音质设置失败:', error);
+    return '128';
+  }
+};
 
 // 初始化播放队列相关功能
 const musicQueueStore = useMusicQueueStore();
@@ -244,6 +258,23 @@ const getSongQuality = (song) => {
     }
   }
   return '';
+};
+
+// 获取专辑ID
+const getAlbumId = (song) => {
+  if (song.album_info && song.album_info.album_id) {
+    return song.album_info.album_id;
+  }
+  if (song.album && song.album.id) {
+    return song.album.id;
+  }
+  if (song.album_id) {
+    return song.album_id;
+  }
+  if (song.albuminfo && song.albuminfo.album_id) {
+    return song.albuminfo.album_id;
+  }
+  return 0;
 };
 
 // 格式化时长
@@ -323,7 +354,7 @@ const toggleFavorite = async () => {
         list_create_listid: albumId.value,
         list_create_gid: albumGid,
         name: album.value.name,
-        pic: album.value.cover,
+        pic: getCover(album.value.cover, 480), // 使用getCover处理封面URL
         count: totalSongs.value,
         authors: [artistName], // 添加作者信息标记为专辑
         create_time: new Date().getTime()
@@ -541,32 +572,7 @@ const addSelectedToOtherPlaylist = async () => {
   }
 };
 
-// 批量下载选中的歌曲
-const downloadSelectedSongs = async () => {
-  if (selectedTracks.value.length === 0) return;
-  
-  try {
-    // 保存选中的歌曲，用于后续下载
-    songsToDownload.value = selectedTracks.value.map(index => songs.value[index]);
-    
-    // 显示音质选择弹窗
-    showQualityModal.value = true;
-    
-    // 关闭菜单
-    isBatchMenuVisible.value = false;
-  } catch (error) {
-    console.error('批量下载失败:', error);
-    if (window.$message) {
-      window.$message.error('批量下载失败');
-    }
-  }
-};
 
-// 关闭音质选择弹窗
-const closeQualityModal = () => {
-  showQualityModal.value = false;
-  currentDownloadSong.value = null;
-};
 
 // 处理单首歌曲收藏
 const handleFavoriteSong = async (song) => {
@@ -581,92 +587,88 @@ const handleFavoriteSong = async (song) => {
       return;
     }
     
-    // 获取用户的歌单列表
-    const playlists = await fetchUserPlaylists();
-    
-    // 构建歌单选择HTML
-    const playlistOptions = playlists.map(playlist => `
-      <div class="playlist-option" data-id="${playlist.id}">
-        ${playlist.name}
-      </div>
-    `).join('');
-    
-    const modalContent = `
-      <div class="playlist-selector">
-        <h3>收藏到</h3>
-        <div class="playlists-container">
-          ${playlistOptions}
-        </div>
-        <div class="modal-footer">
-          <button class="close-btn">关闭</button>
-        </div>
-      </div>
-      <style>
-        .playlist-selector {
-          background: #fff;
-          border-radius: 8px;
-          padding: 20px;
-          width: 300px;
-          max-height: 400px;
-          overflow-y: auto;
-        }
-        .playlist-selector h3 {
-          margin: 0 0 15px 0;
-          font-size: 18px;
-          color: #333;
-        }
-        .playlists-container {
-          margin-bottom: 15px;
-        }
-        .playlist-option {
-          padding: 10px 15px;
-          cursor: pointer;
-          border-radius: 4px;
-          transition: background-color 0.2s;
-        }
-        .playlist-option:hover {
-          background-color: #f5f5f5;
-        }
-        .modal-footer {
-          text-align: center;
-        }
-        .close-btn {
-          background: #ff4081;
-          color: white;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 14px;
-          width: 100%;
-        }
-      </style>
-    `;
-    
-    // 创建自定义弹窗
-    const modal = createCustomModal(modalContent);
-    
-    // 处理歌单选择
-    modal.querySelectorAll('.playlist-option').forEach(option => {
-      option.addEventListener('click', async () => {
-        const playlistId = option.getAttribute('data-id');
-        const playlistName = option.textContent.trim();
-        
-        // 调用API将歌曲添加到指定歌单
-        await addSongToPlaylist(song, playlistId);
-        
-        if (window.$message) {
-          window.$message.success(`已添加到歌单「${playlistName}」`);
-        }
-        
-        closeModal(modal);
+    // 使用PlaylistSelectModal组件显示歌单选择界面
+    if (window.playlistSelect && typeof window.playlistSelect.fetchPlaylists === 'function') {
+      // 设置当前歌曲
+      window.currentSong = song;
+      // 调用组件方法显示歌单选择
+      window.playlistSelect.fetchPlaylists();
+    } else {
+      // 获取用户的歌单列表（仅显示用户创建的歌单，不包含创建新歌单选项）
+      const playlistResponse = await get('/user/playlist', {
+        pagesize: 100
       });
-    });
-    
-    // 处理关闭按钮
-    modal.querySelector('.close-btn').addEventListener('click', () => {
-      closeModal(modal);
-    });
+      
+      if (playlistResponse.status === 1 && playlistResponse.data?.info) {
+        // 只显示用户自己创建的歌单，并排除系统默认歌单
+        const playlists = playlistResponse.data.info.filter(
+          playlist => 
+            playlist.list_create_userid === MoeAuth.UserInfo.userid &&
+            !playlist.name.includes('默认收藏') &&
+            !playlist.name.includes('我喜欢') &&
+            !playlist.name.includes('本地') &&
+            !playlist.name.includes('我的云盘')
+        );
+        
+        // 构建歌单选择HTML（移除创建新歌单选项）
+        const playlistOptions = playlists.map(playlist => `
+          <div class="playlist-option" data-id="${playlist.listid || playlist.id}">
+            ${playlist.name}
+          </div>
+        `).join('');
+        
+        const modalContent = `
+          <div class="playlist-selector" style="background: white; border-radius: 8px; padding: 20px; width: 300px; max-height: 400px; overflow-y: auto;">
+            <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #333;">收藏到</h3>
+            <div class="playlists-container">
+              ${playlistOptions}
+            </div>
+            <div class="modal-footer" style="text-align: center;">
+              <button class="close-btn" style="background: #ff4081; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; width: 100%;">关闭</button>
+            </div>
+          </div>
+          <style>
+            .playlists-container {
+              margin-bottom: 15px;
+            }
+            .playlist-option {
+              padding: 10px 15px;
+              cursor: pointer;
+              border-radius: 4px;
+              transition: background-color 0.2s;
+            }
+            .playlist-option:hover {
+              background-color: #f5f5f5;
+            }
+          </style>
+        `;
+        
+        // 创建自定义弹窗
+        const modal = createCustomModal(modalContent);
+        
+        // 处理歌单选择
+        modal.querySelectorAll('.playlist-option').forEach(option => {
+          option.addEventListener('click', async () => {
+            const playlistId = option.getAttribute('data-id');
+            const playlistName = option.textContent.trim();
+            
+            // 调用API将歌曲添加到指定歌单
+            await addSongToPlaylist(song, playlistId);
+            
+            if (window.$message) {
+              window.$message.success(`已添加到歌单「${playlistName}」`);
+            }
+            
+            closeModal(modal);
+          });
+        });
+        
+        // 处理关闭按钮
+        modal.querySelector('.close-btn').addEventListener('click', () => {
+          closeModal(modal);
+        });
+      }
+    }
   } catch (error) {
     console.error('收藏歌曲失败:', error);
     if (window.$message) {
@@ -675,7 +677,45 @@ const handleFavoriteSong = async (song) => {
   }
 };
 
-// 获取用户歌单列表
+// 创建新歌单
+const createNewPlaylist = async (song) => {
+  try {
+    const newPlaylistName = prompt('请输入歌单名称:');
+    
+    if (!newPlaylistName || newPlaylistName.trim() === '') {
+      return;
+    }
+    
+    // 调用创建歌单API
+    const createResponse = await get('/playlist/create', {
+      name: newPlaylistName.trim(),
+      description: '',
+      list_create_userid: MoeAuth.UserInfo.userid,
+      timestamp: Date.now()
+    });
+    
+    if (createResponse.status === 1 || createResponse.data?.status === 200) {
+      // 获取新创建的歌单ID
+      const newPlaylistId = createResponse.data?.playlistId || newPlaylistName.trim();
+      
+      // 将歌曲添加到新创建的歌单
+      await addSongToPlaylist(song, newPlaylistId);
+      
+      if (window.$message) {
+        window.$message.success(`已创建歌单并添加歌曲`);
+      }
+    } else {
+      throw new Error('创建歌单失败');
+    }
+  } catch (error) {
+    console.error('创建歌单失败:', error);
+    if (window.$message) {
+      window.$message.error('创建歌单失败，请稍后再试');
+    }
+  }
+};
+
+// 获取用户歌单列表（不包含创建新歌单选项）
 const fetchUserPlaylists = async () => {
   try {
     // 从API获取真实的用户歌单数据
@@ -684,15 +724,20 @@ const fetchUserPlaylists = async () => {
     });
     
     if (response.status === 1 && response.data?.info) {
-      // 只返回用户自己创建的歌单，并排除系统默认歌单
-        return response.data.info.filter(
-            playlist => 
-                playlist.list_create_userid === MoeAuth.UserInfo.userid &&
-                playlist.name !== '默认收藏' &&
-                playlist.name !== '我喜欢' &&
-                playlist.name !== '本地' &&
-                playlist.name !== '我的云盘'
-        ).map(playlist => ({
+      // 只返回用户自己创建的歌单，并排除系统默认歌单、收藏的歌单和本地歌单
+      return response.data.info.filter(
+        playlist => 
+          // 只显示用户自己创建的歌单
+          playlist.list_create_userid === MoeAuth.UserInfo.userid &&
+          // 排除收藏的歌单
+          !playlist.is_collected &&
+          // 排除特定名称的系统歌单
+          !playlist.name.includes('默认收藏') &&
+          !playlist.name.includes('我喜欢') &&
+          !playlist.name.includes('本地') &&
+          !playlist.name.includes('我的收藏') &&
+          !playlist.name.includes('我的云盘')
+      ).map(playlist => ({
         id: playlist.listid, // 确保使用正确的ID字段
         name: playlist.name
       }));
@@ -705,11 +750,41 @@ const fetchUserPlaylists = async () => {
   return [];
 };
 
-// 添加歌曲到歌单
+// 添加歌曲到歌单 - 使用与PlaylistDetail.vue相同的实现方式
 const addSongToPlaylist = async (song, playlistId) => {
-  // 这里应该调用实际的API来添加歌曲到歌单
-  console.log('添加歌曲到歌单:', song, '歌单ID:', playlistId);
-  // 可以参考playlist_add.js中的API实现
+  try {
+    // 确保用户已登录
+    if (!MoeAuth.UserInfo?.userid || !MoeAuth.UserInfo?.token) {
+      throw new Error('请先登录');
+    }
+    
+    // 使用更简单的数据格式，与PlaylistDetail.vue保持一致
+    let song_data = '';
+    if (Array.isArray(song)) {
+      song_data = song.map(s => {
+        const songName = getSongName(s) || '';
+        const hash = s.hash || s.audio_info?.hash || s.base?.hash || '';
+        return `${encodeURIComponent(songName.replace(',', '') || '')}|${hash}`;
+      }).join(',');
+    } else {
+      const songName = getSongName(song) || '';
+      const hash = song.hash || song.audio_info?.hash || song.base?.hash || '';
+      song_data = `${encodeURIComponent(songName.replace(',', '') || '')}|${hash}`;
+    }
+    
+    // 使用GET方法，直接将参数拼接到URL中
+    const response = await get(`/playlist/tracks/add?listid=${playlistId}&data=${song_data}`);
+    
+    // 使用与PlaylistDetail.vue相同的成功判断逻辑
+    if (response.status !== 1 && response.data?.status !== 200) {
+      throw new Error('添加到歌单失败');
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('添加到歌单失败:', error);
+    throw error;
+  }
 };
 
 // 创建自定义弹窗
@@ -738,301 +813,23 @@ const createCustomModal = (content) => {
 // 关闭弹窗
 const closeModal = (modal) => {
   if (modal && modal.parentNode) {
-    document.body.removeChild(modal.parentNode);
-  }
-};
-
-// 处理单首歌曲下载
-const handleDownloadSong = async (song) => {
-  try {
-    // 设置当前要下载的歌曲
-    currentDownloadSong.value = song;
-    
-    // 保存到下载队列
-    songsToDownload.value = [song];
-    
-    // 显示音质选择弹窗（类似图3的效果）
-    showQualityModal.value = true;
-  } catch (error) {
-    console.error('准备下载歌曲失败:', error);
-    if (window.$message) {
-      window.$message.error('准备下载歌曲失败');
+      document.body.removeChild(modal.parentNode);
     }
-  }
-};
-
-// 选择音质
-const selectQuality = async (quality) => {
-  // 关闭弹窗
-  showQualityModal.value = false;
-  
-  // 处理下载
-  await handleQualitySelected(quality);
-};
-
-// 带重试机制的下载函数 - 增强版，添加严格参数验证和详细日志记录
-const downloadWithRetry = async (song, quality, maxRetries = 2) => {
-  // 严格参数验证
-  console.log('【调试】downloadWithRetry开始，参数验证', { 
-    songId: song?.id,
-    quality,
-    hasHash: !!song?.hash,
-    hasAudioInfo: !!song?.audio_info,
-    maxRetries
-  });
-  
-  if (!song || !song.id) {
-    console.error('【错误】downloadWithRetry: 缺少有效的歌曲信息');
-    return { success: false, error: new Error('缺少有效的歌曲信息') };
-  }
-  
-  if (!quality) {
-    console.error('【错误】downloadWithRetry: 缺少音质参数');
-    return { success: false, error: new Error('缺少音质参数') };
-  }
-  
-  let lastError = null;
-  const startTime = Date.now();
-  
-  // 尝试不同的hash获取策略 - 添加策略名称标识
-  const hashStrategies = [
-    { name: 'getHashByQualityAlt', fn: () => getHashByQualityAlt(song, quality) }, // 原始hash获取
-    { name: 'song.hash', fn: () => song.hash }, // 直接使用song.hash
-    { name: 'getHashByQuality(320)', fn: () => getHashByQuality(song, '320') }, // 降级到320音质
-    { name: 'getHashByQuality(128)', fn: () => getHashByQuality(song, '128') }, // 降级到128音质
-    { name: 'getSongHash', fn: () => getSongHash(song) } // 使用默认hash获取方法
-  ];
-  
-  // 尝试不同的音质降级策略
-  const qualityStrategies = quality === 'flac' || quality === 999 
-    ? [quality, 320, 128]
-    : quality === '320' || quality === 320
-    ? [quality, 128]
-    : [quality];
-  
-  console.log(`【调试】下载策略配置: 最大重试${maxRetries}次，音质降级路径: ${qualityStrategies.join(' → ')}`);
-  
-  for (let retry = 0; retry <= maxRetries; retry++) {
-    console.log(`【调试】开始下载尝试轮次 ${retry}/${maxRetries}，歌曲: ${getSongName(song)}`);
-    
-    for (const currentQuality of qualityStrategies) {
-      const qualityLabel = getQualityLabel(currentQuality);
-      console.log(`【调试】尝试音质: ${qualityLabel}`);
-      
-      for (let hashStrategyIndex = 0; hashStrategyIndex < hashStrategies.length; hashStrategyIndex++) {
-        const strategy = hashStrategies[hashStrategyIndex];
-        
-        try {
-          console.log(`【调试】尝试Hash策略 ${hashStrategyIndex + 1}/${hashStrategies.length}: ${strategy.name}`);
-          
-          // 尝试当前hash策略
-          const hash = strategy.fn();
-          
-          if (!hash) {
-            console.warn(`【调试】hash策略 ${hashStrategyIndex + 1} (${strategy.name}) 返回空值，尝试下一个策略`);
-            continue;
-          }
-          
-          console.log(`【调试】使用Hash策略 ${hashStrategyIndex + 1} (${strategy.name}) 获取到hash:`, hash);
-          
-          if (retry > 0 || currentQuality !== quality || hashStrategyIndex > 0) {
-            console.log(`【调试】重试下载 ${getSongName(song)} (第${retry}次)，使用音质: ${qualityLabel}，hash策略: ${strategy.name}`);
-          }
-          
-          // 尝试下载
-          const downloadResult = await downloadSong(song, hash, currentQuality);
-          
-          const endTime = Date.now();
-          console.log(`【调试】下载成功: ${getSongName(song)}，音质: ${qualityLabel}，耗时: ${((endTime - startTime) / 1000).toFixed(2)}秒`);
-          
-          return { 
-            success: true, 
-            quality: currentQuality,
-            hashStrategy: strategy.name,
-            hash,
-            duration: ((endTime - startTime) / 1000).toFixed(2)
-          };
-        } catch (error) {
-          lastError = error;
-          console.error(`【调试】下载尝试失败 (音质: ${qualityLabel}, hash策略: ${strategy.name}):`, error.message);
-          // 继续尝试下一个策略
-          continue;
-        }
-      }
-    }
-    
-    // 等待后重试 - 增加等待时间，使用指数退避
-    if (retry < maxRetries) {
-      const waitTime = Math.pow(2, retry + 1) * 1000; // 2秒、4秒、8秒...
-      console.log(`【调试】所有策略尝试失败，将在${waitTime}ms后重试...`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-    }
-  }
-  
-  const endTime = Date.now();
-  console.error(`【调试】下载完全失败，耗时: ${((endTime - startTime) / 1000).toFixed(2)}秒，歌曲: ${getSongName(song)}`);
-  
-  return { 
-    success: false, 
-    error: lastError,
-    duration: ((endTime - startTime) / 1000).toFixed(2),
-    retries: maxRetries,
-    qualityAttempts: qualityStrategies.length,
-    hashStrategiesAttempted: hashStrategies.length
   };
-};
+
+  // 处理单首歌曲下载 - 使用默认音质直接下载
+
+
+
+
+
+
+
+  
+
 
 // 处理下载逻辑 - 增强版，添加严格参数验证和详细日志记录
-const handleQualitySelected = async (quality) => {
-  // 记录开始时间
-  const startTime = Date.now();
-  console.log('【调试】handleQualitySelected开始，参数验证', { 
-    quality,
-    songsToDownloadCount: songsToDownload.value?.length || 0,
-    timestamp: new Date().toISOString()
-  });
-  
-  try {
-    // 严格参数验证
-    if (!quality) {
-      console.error('【错误】缺少音质参数');
-      if (window.$message) {
-        window.$message.warning('请选择音质');
-      }
-      return;
-    }
-    
-    if (!songsToDownload.value || !Array.isArray(songsToDownload.value) || songsToDownload.value.length === 0) {
-      console.error('【错误】下载队列为空或无效');
-      if (window.$message) {
-        window.$message.warning('没有可下载的歌曲');
-      }
-      return;
-    }
-    
-    // 过滤有效歌曲
-    const validSongs = songsToDownload.value.filter(song => song && song.id);
-    if (validSongs.length === 0) {
-      console.error('【错误】没有有效歌曲可下载');
-      if (window.$message) {
-        window.$message.warning('所选歌曲信息无效，请重新选择');
-      }
-      return;
-    }
-    
-    currentDownloadQuality.value = quality;
-    console.log(`【调试】使用音质 ${getQualityLabel(quality)} 下载 ${validSongs.length} 首有效歌曲`);
-    
-    // 下载统计
-    let successCount = 0;
-    let failCount = 0;
-    const failedSongs = [];
-    
-    // 确保音质参数格式一致性
-    let qualityParam = quality;
-    if (typeof quality === 'string') {
-      // 如果是字符串格式，转换为数字
-      if (quality === 'flac') qualityParam = 999;
-      else if (quality === '320' || quality === '128') qualityParam = parseInt(quality);
-    }
-    
-    console.log(`【调试】音质参数转换: ${quality} -> ${qualityParam}`);
-    
-    // 显示开始下载的提示
-    const messageOptions = { 
-      message: `开始下载 ${validSongs.length} 首歌曲，将自动进行重试和音质降级`,
-      type: 'info',
-      duration: 5000
-    };
-    
-    if (window.$message) {
-      window.$message(messageOptions);
-    }
-    
-    // 真实下载过程 - 串行下载以避免并发问题
-    for (const [index, song] of validSongs.entries()) {
-      // 再次验证song对象有效性
-      if (!song || !song.id) {
-        console.error(`【错误】第${index + 1}首歌曲对象无效`);
-        continue;
-      }
-      
-      const songName = getSongName(song);
-      const artistName = getAuthorName(song);
-      
-      console.log(`【调试】开始处理第 ${index + 1}/${validSongs.length} 首: ${songName} - ${artistName}`);
-      
-      try {
-        // 使用带重试机制的下载函数
-        const result = await downloadWithRetry(song, quality);
-        
-        if (result.success) {
-          successCount++;
-          console.log(`【调试】第 ${index + 1} 首下载成功，使用音质: ${getQualityLabel(result.quality)}，hash策略: ${result.hashStrategy}`);
-          
-          // 显示单个下载成功的消息
-          if (window.$message && validSongs.length <= 5) { // 只在少量歌曲时显示每个成功消息
-            window.$message.success(`成功下载: ${songName}`);
-          }
-        } else {
-          failCount++;
-          failedSongs.push({
-            name: songName,
-            error: result.error?.message || '未知错误',
-            retries: result.retries,
-            strategiesAttempted: result.hashStrategiesAttempted
-          });
-          console.error(`【调试】歌曲 ${songName} 下载失败（所有重试均失败）:`, result.error?.message);
-          console.error(`【调试】失败详情:`, result);
-        }
-      } catch (unexpectedError) {
-        failCount++;
-        failedSongs.push({
-          name: songName,
-          error: unexpectedError.message,
-          type: 'unexpected_error'
-        });
-        console.error(`【调试】处理歌曲 ${songName} 时发生意外错误:`, unexpectedError);
-        console.error(`【调试】错误堆栈:`, unexpectedError.stack);
-      }
-      
-      // 添加延迟避免请求过于密集 - 使用随机延迟增加稳定性
-      if (index < validSongs.length - 1) {
-        const delay = Math.floor(Math.random() * 500) + 800; // 800-1300ms的随机延迟
-        console.log(`【调试】添加请求间隔: ${delay}ms`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-    
-    const endTime = Date.now();
-    const duration = (endTime - startTime) / 1000;
-    
-    // 显示下载完成消息
-    console.log(`【调试】批量下载完成，耗时: ${duration.toFixed(2)}秒`);
-    console.log(`【调试】下载结果统计: 成功${successCount}首，失败${failCount}首`);
-    
-    if (window.$message) {
-      if (failCount === 0) {
-        window.$message.success(`成功下载全部 ${successCount} 首歌曲 (耗时: ${duration.toFixed(2)}秒)`);
-      } else {
-        window.$message.warning(`成功下载 ${successCount} 首歌曲，${failCount} 首歌曲下载失败 (耗时: ${duration.toFixed(2)}秒)`);
-        // 记录失败歌曲列表到控制台
-        console.warn('【调试】下载失败的歌曲详细列表:', JSON.stringify(failedSongs, null, 2));
-      }
-    }
-  } catch (error) {
-    console.error('【调试】下载过程中发生严重错误:', error);
-    console.error('【调试】错误堆栈:', error.stack);
-    
-    if (window.$message) {
-      window.$message.error('下载过程中发生严重错误');
-    }
-  } finally {
-    // 清空下载队列
-    songsToDownload.value = [];
-    console.log('【调试】批量下载流程完全结束，已清空下载队列');
-  }
-};
+
 
 // 根据音质获取对应的hash
 const getHashByQuality = (song, quality) => {
@@ -1072,362 +869,211 @@ const getQualityLabel = (quality) => {
   return typeof quality === 'number' ? `${quality}K` : '标准音质';
 };
 
-// 根据选择的音质获取对应的hash - 支持数字格式的音质参数
+// 根据选择的音质获取对应的hash - 支持数字格式和字符串格式的音质参数
 const getHashByQualityAlt = (song, quality) => {
   // 转换数字格式为字符串格式以保持兼容性
-  let qualityStr = quality;
-  if (quality === 999) qualityStr = 'flac';
-  else if (quality === 320 || quality === 128) qualityStr = String(quality);
+  let qualityStr = String(quality);
+  
+  // 统一将999转换为flac
+  if (qualityStr === '999') qualityStr = 'flac';
   
   return getHashByQuality(song, qualityStr);
 };
 
-// 真实下载实现 - 优化版，增强错误处理和下载可靠性
-const downloadSong = async (song, hash, quality) => {
-  // 详细记录song对象结构，用于调试
-  console.log('【调试】song对象结构:', {id: song.id, hash: song.hash, audio_info: song.audio_info ? Object.keys(song.audio_info) : 'undefined'});
-  
-  // 参数验证增强
-  if (!song) {
-    console.error('【调试】缺少song对象');
-    return Promise.reject(new Error('缺少歌曲信息'));
-  }
-  
-  if (!hash) {
-    console.error('【调试】缺少hash值，song.hash:', song.hash, 'song.audio_info:', song.audio_info);
-    return Promise.reject(new Error('缺少歌曲hash值'));
-  }
-
+// 处理歌曲下载
+const downloadSong = async (song) => {
   try {
-    const songName = getSongName(song);
-    const artistName = getAuthorName(song);
-    const qualityLabel = getQualityLabel(quality);
+    // 获取默认下载音质设置
+    const defaultQuality = getDefaultDownloadQuality();
     
-    console.log(`【调试】开始下载歌曲 (${qualityLabel}):`, songName, 'by', artistName, 'hash:', hash);
-    
-    // 首先获取真实的音频文件URL
-    // 转换音质参数，与song_url API保持一致
-    let apiQuality = quality;
-    if (quality === 'flac' || quality === 999) {
-      apiQuality = 'flac';
-    } else if (quality === 320 || quality === '320') {
-      apiQuality = 320;
-    } else if (quality === 128 || quality === '128') {
-      apiQuality = 128;
-    }
-    
-    console.log(`【调试】API调用参数: hash=${hash}, quality=${apiQuality}`);
-    
-    // 获取音频文件的真实URL - 增加超时控制
-    console.log('【调试】调用song/url API...');
-    
-    // 添加超时机制的fetch函数
-    const fetchWithTimeout = (url, options, timeout = 15000) => {
-      return Promise.race([
-        get(url, options),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('API请求超时')), timeout)
-        )
-      ]);
+    // 准备下载的歌曲数据 - 保留完整 audio_info 用于获取正确 hash
+    currentDownloadSong.value = {
+      name: getSongName(song),
+      author: getAuthorName(song),
+      album: getAlbumName(song),
+      hash: song.hash || song.FileHash || song.file_hash || song.audio_info?.hash || song.audio_info?.file_hash,
+      isCloud: false,
+      isLocal: false,
+      audio_info: song.audio_info // 保留 audio_info 以便后续获取对应音质的 hash
     };
     
-    // 尝试多次API请求
-    let urlResponse = null;
-    let maxApiRetries = 2;
-    let apiRetryCount = 0;
-    
-    while (!urlResponse && apiRetryCount <= maxApiRetries) {
-      try {
-        if (apiRetryCount > 0) {
-          console.log(`【调试】API请求重试 (${apiRetryCount}/${maxApiRetries})...`);
-          // 等待一段时间后重试
-          await new Promise(resolve => setTimeout(resolve, 1000 * apiRetryCount));
-        }
-        urlResponse = await fetchWithTimeout('/song/url', { hash, quality: apiQuality });
-      } catch (apiError) {
-        console.error(`【调试】API请求失败 (${apiRetryCount}/${maxApiRetries}):`, apiError.message);
-        apiRetryCount++;
-        if (apiRetryCount > maxApiRetries) {
-          throw new Error(`API请求失败且重试耗尽: ${apiError.message}`);
-        }
-      }
-    }
-    
-    console.log('【调试】URL API响应完整结构:', JSON.stringify(urlResponse));
-    
-    // 检查API响应结构，使用更健壮的处理方式
-    let downloadUrl = null;
-    
-    try {
-      // 尝试获取响应数据
-      const data = urlResponse?.data || {};
-      
-      // 处理可能的响应格式
-      // 格式1: 直接在data中包含url
-      if (data.url) {
-        downloadUrl = data.url;
-        console.log('【调试】从data.url获取下载链接:', downloadUrl);
-      }
-      // 格式2: data是数组，第一个元素包含url
-      else if (Array.isArray(data) && data.length > 0 && data[0].url) {
-        downloadUrl = data[0].url;
-        console.log('【调试】从data[0].url获取下载链接:', downloadUrl);
-      }
-      // 格式3: 尝试查找第一个有效的url
-      else if (Array.isArray(data)) {
-        const validItem = data.find(item => item && item.url);
-        if (validItem) {
-          downloadUrl = validItem.url;
-          console.log('【调试】从data数组中找到有效url:', downloadUrl);
-        }
-      }
-      // 格式4: 检查是否有其他可能包含url的字段
-      else if (data.data && (data.data.url || (Array.isArray(data.data) && data.data[0]?.url))) {
-        if (data.data.url) {
-          downloadUrl = data.data.url;
-        } else if (Array.isArray(data.data) && data.data[0]?.url) {
-          downloadUrl = data.data[0].url;
-        }
-        console.log('【调试】从嵌套data字段获取下载链接:', downloadUrl);
-      }
-      // 格式5: 检查是否有歌曲列表格式
-      else if (data.list && Array.isArray(data.list) && data.list.length > 0 && data.list[0].url) {
-        downloadUrl = data.list[0].url;
-        console.log('【调试】从data.list获取下载链接:', downloadUrl);
-      }
-      // 格式6: 尝试通过audio_data获取
-      else if (data.audio_data && (data.audio_data.url || (Array.isArray(data.audio_data) && data.audio_data[0]?.url))) {
-        if (data.audio_data.url) {
-          downloadUrl = data.audio_data.url;
-        } else if (Array.isArray(data.audio_data) && data.audio_data[0]?.url) {
-          downloadUrl = data.audio_data[0].url;
-        }
-        console.log('【调试】从data.audio_data获取下载链接:', downloadUrl);
-      }
-      
-      // 额外检查是否返回了错误信息
-      if (urlResponse?.error || urlResponse?.code === -1 || urlResponse?.status === -1) {
-        throw new Error(`API返回错误: ${JSON.stringify(urlResponse)}`);
-      }
-    } catch (parseError) {
-      console.error('【调试】解析API响应失败:', parseError);
-    }
-    
-    // 如果仍然没有获取到url，尝试重试或使用备选方案
-    if (!downloadUrl) {
-      // 尝试使用默认音质重新获取
-      console.warn('【调试】未获取到URL，尝试使用默认音质(320)重新获取...');
-      const fallbackResponse = await get('/song/url', { hash, quality: 320 });
-      console.log('【调试】备选API响应:', JSON.stringify(fallbackResponse));
-      
-      const fallbackData = fallbackResponse?.data || {};
-      if (fallbackData.url) {
-        downloadUrl = fallbackData.url;
-        console.log('【调试】通过备选请求获取到URL:', downloadUrl);
-      } else if (Array.isArray(fallbackData) && fallbackData[0]?.url) {
-        downloadUrl = fallbackData[0].url;
-        console.log('【调试】通过备选请求获取到URL:', downloadUrl);
-      } else if (fallbackData.list && Array.isArray(fallbackData.list) && fallbackData.list.length > 0 && fallbackData.list[0].url) {
-        downloadUrl = fallbackData.list[0].url;
-        console.log('【调试】通过备选请求data.list获取到URL:', downloadUrl);
-      }
-    }
-    
-    // 如果仍然没有URL，尝试使用最低音质
-    if (!downloadUrl) {
-      console.warn('【调试】仍然未获取到URL，尝试使用最低音质(128)重新获取...');
-      const lastResortResponse = await get('/song/url', { hash, quality: 128 });
-      console.log('【调试】最低音质API响应:', JSON.stringify(lastResortResponse));
-      
-      const lastResortData = lastResortResponse?.data || {};
-      if (lastResortData.url) {
-        downloadUrl = lastResortData.url;
-        console.log('【调试】通过最低音质请求获取到URL:', downloadUrl);
-      } else if (Array.isArray(lastResortData) && lastResortData[0]?.url) {
-        downloadUrl = lastResortData[0].url;
-        console.log('【调试】通过最低音质请求获取到URL:', downloadUrl);
-      }
-    }
-    
-    if (!downloadUrl) {
-      throw new Error('无法获取音频文件URL，请检查歌曲是否可下载');
-    }
-    
-    console.log('【调试】最终获取到音频文件URL:', downloadUrl);
-    
-    // 使用fetch API获取文件blob，确保强制下载而不是播放
-    console.log('【调试】开始fetch下载文件');
-    
-    // 添加fetch选项，确保正确处理跨域请求和认证
-    const fetchOptions = {
-      method: 'GET',
-      headers: {
-        'Accept': 'audio/mpeg, audio/flac, audio/*, application/octet-stream',
-        'User-Agent': navigator.userAgent
-      },
-      credentials: 'include', // 包含cookie，处理可能的认证需求
-      mode: 'cors',
-      cache: 'no-cache'
+    // 直接获取音质信息并下载
+    // 这里简化处理，直接构建一个包含所需信息的对象
+    const qualityInfo = {
+      quality: defaultQuality,
+      label: defaultQuality === 'flac' || defaultQuality === '999' ? '无损' : defaultQuality === '320' ? '320K' : '128K',
+      url: null // 稍后会在handleQualitySelected中获取
     };
     
-    // 添加超时控制的fetch
-    const fileFetchWithTimeout = (url, options, timeout = 30000) => {
-      return Promise.race([
-        fetch(url, options),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('文件下载超时')), timeout)
-        )
-      ]);
-    };
+    // 设置要下载的歌曲（用于单个下载和批量下载的统一处理）
+    songsToDownload.value = [currentDownloadSong.value];
     
-    // 尝试多次下载文件
-    let response = null;
-    let maxDownloadRetries = 1;
-    let downloadRetryCount = 0;
-    
-    while (!response && downloadRetryCount <= maxDownloadRetries) {
-      try {
-        if (downloadRetryCount > 0) {
-          console.log(`【调试】文件下载重试 (${downloadRetryCount}/${maxDownloadRetries})...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-        response = await fileFetchWithTimeout(downloadUrl, fetchOptions);
-      } catch (downloadError) {
-        console.error(`【调试】文件下载失败 (${downloadRetryCount}/${maxDownloadRetries}):`, downloadError.message);
-        downloadRetryCount++;
-        if (downloadRetryCount > maxDownloadRetries) {
-          throw new Error(`文件下载失败且重试耗尽: ${downloadError.message}`);
-        }
-      }
-    }
-    
-    console.log('【调试】fetch响应状态:', response.status, response.statusText);
-    
-    if (!response.ok) {
-      // 尝试处理HTTP错误状态
-      if (response.status === 404) {
-        throw new Error('文件不存在或已被删除');
-      } else if (response.status === 403) {
-        throw new Error('没有权限访问此文件，可能需要登录');
-      } else if (response.status >= 500) {
-        throw new Error('服务器错误，请稍后重试');
-      } else if (response.status === 429) {
-        throw new Error('请求过于频繁，请稍后再试');
-      } else {
-        throw new Error(`网络请求失败: ${response.status} ${response.statusText}`);
-      }
-    }
-    
-    // 检查响应内容类型
-    const contentType = response.headers.get('content-type');
-    console.log('【调试】响应内容类型:', contentType);
-    
-    // 验证是否为音频文件
-    if (!contentType || (!contentType.includes('audio') && !contentType.includes('application/octet-stream'))) {
-      console.warn('【调试】警告: 响应内容可能不是音频文件');
-    }
-    
-    const blob = await response.blob();
-    console.log('【调试】成功获取文件blob，大小:', blob.size, '类型:', blob.type);
-    
-    // 创建blob URL
-    const blobUrl = URL.createObjectURL(blob);
-    
-    // 创建下载链接 - 改进版，增强兼容性和可靠性
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    
-    // 设置文件名，包含音质信息，避免特殊字符
-    const extension = getExtensionByQuality(quality);
-    let fileName = `${artistName} - ${songName} (${qualityLabel}).${extension}`;
-    fileName = fileName.replace(/[<>"/\\|?*:]/g, '_'); // 替换Windows文件名中的非法字符
-    
-    // 确保文件名不超过200个字符
-    if (fileName.length > 200) {
-      const nameWithoutExt = fileName.substring(0, fileName.length - extension.length - 1);
-      fileName = nameWithoutExt.substring(0, 200 - extension.length - 1) + '.' + extension;
-      console.log('【调试】文件名过长，已截断:', fileName);
-    }
-    
-    link.download = fileName;
-    link.target = '_blank'; // 确保在新标签中打开，不会干扰当前页面
-    
-    // 设置样式，确保链接不可见
-    link.style.display = 'none';
-    link.style.opacity = '0';
-    link.style.position = 'absolute';
-    link.style.left = '-9999px';
-    
-    // 触发下载 - 增强版，支持更多浏览器和环境
-    document.body.appendChild(link);
-    
-    // 使用多种方式确保下载触发
-    try {
-      // 方式1: 标准的点击事件
-      console.log('【调试】尝试标准方式触发下载');
-      link.click();
-      
-      // 方式2: 如果标准方式失败，尝试使用自定义事件
-      setTimeout(() => {
-        console.log('【调试】确认下载触发或尝试备用方式');
-        const clickEvent = new MouseEvent('click', {
-          bubbles: true,
-          cancelable: true,
-          view: window
-        });
-        link.dispatchEvent(clickEvent);
-      }, 50);
-      
-      // 清理 - 延迟更长时间，确保下载完成
-      setTimeout(() => {
-        if (document.body.contains(link)) {
-          document.body.removeChild(link);
-        }
-        // 延迟更长时间释放blob URL，确保下载完成
-        setTimeout(() => {
-          try {
-            URL.revokeObjectURL(blobUrl);
-            console.log('【调试】已释放blob URL');
-          } catch (revokeError) {
-            console.warn('【调试】释放blob URL时出错:', revokeError);
-          }
-        }, 3000); // 3秒后释放
-      }, 100);
-      
-      console.log('【调试】歌曲下载已触发:', fileName);
-      return Promise.resolve({ success: true, fileName });
-      
-    } catch (downloadTriggerError) {
-      console.error('【调试】触发下载时出错:', downloadTriggerError);
-      // 清理资源
-      if (document.body.contains(link)) {
-        document.body.removeChild(link);
-      }
-      try {
-        URL.revokeObjectURL(blobUrl);
-      } catch (revokeError) {
-        console.warn('【调试】释放blob URL时出错:', revokeError);
-      }
-      
-      // 尝试使用替代方案：打开新窗口
-      console.log('【调试】尝试替代方案：直接打开下载链接');
-      try {
-        window.open(blobUrl, '_blank');
-        console.log('【调试】已通过新窗口触发下载');
-        return Promise.resolve({ success: true, fileName, method: 'new_window' });
-      } catch (fallbackError) {
-        throw new Error(`触发下载失败: ${downloadTriggerError.message}`);
-      }
-    }
-    
+    // 直接调用下载处理函数
+    await handleQualitySelected(qualityInfo);
   } catch (error) {
-    console.error('【调试】下载歌曲失败:', error.message, '错误对象:', error);
-    // 添加详细的错误信息，便于排查
-    const detailedError = new Error(`歌曲下载失败: ${error.message} (hash: ${hash}, quality: ${quality})`);
-    detailedError.originalError = error;
-    return Promise.reject(detailedError);
+    console.error('下载歌曲失败:', error);
+    if (window.$message) {
+      window.$message.error('下载失败');
+    }
   }
 };
+
+// 处理音质选择并下载
+const handleQualitySelected = async (qualityInfo) => {
+  try {
+    // 关闭菜单
+    isBatchMenuVisible.value = false;
+    showQualityModal.value = false;
+    console.log('【调试】开始批量下载，当前设置:', { quality: qualityInfo.quality });
+
+    // 检查是否有可下载的歌曲
+    if (!songsToDownload.value || !Array.isArray(songsToDownload.value) || songsToDownload.value.length === 0) {
+      window.$message.error('没有可下载的歌曲');
+      return;
+    }
+
+    // 过滤出有效歌曲（存在音乐hash标识）
+    const validSongs = songsToDownload.value.filter(song => {
+      const hash = getSongHash(song, qualityInfo.quality);
+      return !!hash;
+    });
+
+    // 检查无效歌曲
+    const invalidSongs = songsToDownload.value.filter(song => {
+      const hash = getSongHash(song, qualityInfo.quality);
+      return !hash;
+    });
+
+    // 输出调试信息
+    console.log('【调试】有效歌曲数量:', validSongs.length);
+    console.log('【调试】无效歌曲数量:', invalidSongs.length);
+
+    // 下载统计
+    let successCount = 0;
+    let failCount = 0;
+    let failedSongs = [];
+
+    // 批量下载任务
+    const downloadTasks = validSongs.map(async (song, index) => {
+      try {
+        // 获取音乐hash
+        const hash = getSongHash(song, qualityInfo.quality);
+        if (!hash) {
+          console.error('【调试】歌曲缺少有效hash:', song);
+          return Promise.reject(new Error('歌曲缺少有效hash'));
+        }
+
+        // 下载参数配置
+        const downloadParams = {
+          hash: hash,
+          quality: qualityInfo.quality
+        };
+
+        // 未登录用户添加free_part参数
+        if (!MoeAuth.isAuthenticated) {
+          downloadParams.free_part = 1;
+        }
+
+        // 获取下载链接
+        console.log('【调试】获取下载链接:', { songName: getSongName(song), hash: hash, params: downloadParams });
+        const response = await get('/song/url', downloadParams);
+
+        // 检查响应
+        if (response.status !== 1) {
+          return Promise.reject(new Error('获取下载链接失败'));
+        }
+
+        // 解析下载链接
+        let downloadUrl = null;
+        const data = response?.data || {};
+        if (response.url) {
+          downloadUrl = Array.isArray(response.url) ? response.url[0] : response.url;
+        } else if (data.url) {
+          downloadUrl = Array.isArray(data.url) ? data.url[0] : data.url;
+        } else if (Array.isArray(data) && data[0]?.url) {
+          downloadUrl = data[0].url;
+        } else if (data.list && Array.isArray(data.list) && data.list[0]?.url) {
+          downloadUrl = data.list[0].url;
+        } else if (data.data && data.data.url) {
+          downloadUrl = data.data.url;
+        } else if (data.data && Array.isArray(data.data) && data.data[0]?.url) {
+          downloadUrl = data.data[0].url;
+        }
+
+        if (!downloadUrl) {
+          return Promise.reject(new Error('无法解析下载链接'));
+        }
+
+        // 设置文件名，包含音质信息，避免特殊字符
+        let fileExtension = (qualityInfo.quality === 'flac' || qualityInfo.quality === '999' || qualityInfo.quality === 999) ? 'flac' : 'mp3';
+        let fileName = `${song.name} - ${song.author} (${qualityInfo.label}).${fileExtension}`;
+        fileName = fileName.replace(/[<>"/\\|?*:]/g, '_');
+
+        // 使用fetch API获取文件blob，确保强制下载而不是播放
+        const downloadResponse = await fetch(downloadUrl);
+        if (!downloadResponse.ok) {
+          return Promise.reject(new Error('Network response was not ok'));
+        }
+
+        const blob = await downloadResponse.blob();
+
+        // 创建blob URL
+        const blobUrl = URL.createObjectURL(blob);
+
+        // 创建下载链接
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.target = '_blank'; // 确保在新标签中打开，不会干扰当前页面
+
+        // 触发下载
+        document.body.appendChild(link);
+
+        // 使用setTimeout确保DOM操作完成
+        setTimeout(() => {
+          link.click();
+          // 清理
+          document.body.removeChild(link);
+          // 延迟释放blob URL，确保下载完成
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        }, 0);
+
+
+
+
+        // 下载成功
+        successCount++;
+        return Promise.resolve();
+      } catch (error) {
+        // 下载失败
+        failCount++;
+        failedSongs.push(getSongName(song));
+        console.error('下载歌曲失败:', getSongName(song), error);
+        return Promise.resolve(); // 继续下载其他歌曲
+      }
+    });
+
+    // 等待所有下载任务完成
+    await Promise.all(downloadTasks);
+
+    // 提示下载结果
+    if (successCount > 0) {
+      window.$message.success(`成功下载 ${successCount} 首歌曲`);
+    }
+    if (failCount > 0) {
+      window.$message.error(`下载失败 ${failCount} 首歌曲: ${failedSongs.join(', ')}`);
+    }
+  } catch (error) {
+    const errorMsg = songsToDownload.value.length === 1 ? '下载失败' : '批量下载失败';
+    console.error(errorMsg + ':', error);
+    window.$message.error(errorMsg);
+  } finally {
+    // 重置下载状态
+    songsToDownload.value = [];
+    showQualityModal.value = false;
+  }
+};
+
 
 // 播放全部歌曲
 const playAllSongs = async () => {
@@ -1522,28 +1168,22 @@ const playAllSongs = async () => {
         // 取数组中的第一个元素作为专辑数据
         const data = apiData[0];
         
-        // 映射专辑数据到组件需要的格式
+        // 使用getCover函数处理专辑封面URL
         let coverUrl = './assets/images/ico.png'; // 默认封面
         
-        // 与AlbumGrid组件保持完全一致的图片处理方式
         if (data.img) {
-          coverUrl = (data.img || './assets/images/ico.png').replace('/240/','/480/');
+          coverUrl = getCover(data.img, 480);
         } else if (data.image) {
-          coverUrl = (data.image || './assets/images/ico.png').replace('/240/','/480/');
+          coverUrl = getCover(data.image, 480);
         } else if (data.cover) {
-          if (data.cover.startsWith('http://') || data.cover.startsWith('https://')) {
-            coverUrl = data.cover.replace('/240/','/480/');
-          } else {
-            const fileName = data.cover.includes('/') ? data.cover.split('/').pop() : data.cover;
-            coverUrl = `https://imge.kugou.com/stdmusic/480/${fileName}`;
-          }
+          coverUrl = getCover(data.cover, 480);
         } else if (data.cover_url) {
-          coverUrl = data.cover_url.replace('/240/','/480/');
+          coverUrl = getCover(data.cover_url, 480);
         } else if (data.album_cover) {
-          coverUrl = data.album_cover.replace('/240/','/480/');
+          coverUrl = getCover(data.album_cover, 480);
+        } else if (data.sizable_cover) {
+          coverUrl = getCover(data.sizable_cover, 480);
         }
-        
-        coverUrl = coverUrl.replace('/240/','/480/');
         
         album.value = {
           id: albumId.value,
@@ -1708,22 +1348,40 @@ const playSong = async (song) => {
 };
 
 // 获取歌曲hash
-const getSongHash = (song) => {
-  // 专辑歌曲格式：优先从audio_info中获取hash
+const getSongHash = (song, quality) => {
+  // 确保音质是字符串类型
+  const qualityStr = String(quality);
+  let hash = '';
+  // 专辑歌曲格式：优先从audio_info中获取对应音质的hash
   if (song.audio_info) {
-    if (song.audio_info.hash) return song.audio_info.hash;
-    if (song.audio_info.hash_128) return song.audio_info.hash_128;
-    if (song.audio_info.hash_320) return song.audio_info.hash_320;
-    if (song.audio_info.hash_flac) return song.audio_info.hash_flac;
+    // 根据音质选择对应的hash字段
+    switch (qualityStr) {
+      case 'flac':
+        hash = song.audio_info.hash_flac || song.audio_info.hash_320 || song.audio_info.hash_128 || song.audio_info.hash;
+        break;
+      case '320':
+        hash = song.audio_info.hash_320 || song.audio_info.hash_128 || song.audio_info.hash;
+        break;
+      case '128':
+        hash = song.audio_info.hash_128 || song.audio_info.hash;
+        break;
+      default:
+        // 默认使用高品质hash，如果没有则降级
+        hash = song.audio_info.hash || song.audio_info.hash_320 || song.audio_info.hash_128;
+    }
   }
-  // 歌单格式和其他通用字段
-  if (song.hash) return song.hash;
-  if (song.file_hash) return song.file_hash;
-  if (song.track_id) return song.track_id;
-  if (song.audio_id) return song.audio_id;
-  if (song.id) return song.id;
-  if (song.base?.audio_id) return song.base.audio_id;
-  return null;
+  // 如果没有获取到hash，尝试使用歌单格式和其他通用字段
+  if (!hash && song.hash) hash = song.hash;
+  if (!hash && song.file_hash) hash = song.file_hash;
+  if (!hash && song.track_id) hash = song.track_id;
+  if (!hash && song.songid) hash = song.songid;
+  if (!hash && song.id) hash = song.id;
+  if (!hash && song.mid) hash = song.mid;
+  if (!hash && song.songmid) hash = song.songmid;
+  if (!hash && song.audio_id) hash = song.audio_id;
+  if (!hash && song.id) hash = song.id;
+  if (!hash && song.base?.audio_id) hash = song.base.audio_id;
+  return hash || null;
 };
 
 // 已在上面的onMounted中处理，这里移除重复代码

@@ -1,5 +1,44 @@
 <template>
     <div class="detail-page">
+        <!-- 音质选择弹窗 -->
+        <div v-if="showQualityModal" class="quality-select-modal-overlay" @click="closeQualityModal">
+            <div class="quality-select-modal" @click.stop>
+                <div class="modal-header">
+                    <h3>选择音质</h3>
+                    <button class="close-btn" @click="closeQualityModal">&times;</button>
+                </div>
+                <div class="modal-content">
+                    <div class="song-info">
+                        <div class="song-title">{{ currentDownloadSong ? currentDownloadSong.name : '' }}</div>
+                        <div class="song-artist">{{ currentDownloadSong ? currentDownloadSong.author || currentDownloadSong.artist : '' }}</div>
+                    </div>
+                    <div class="quality-options">
+                        <div class="quality-item" @click="selectQuality('flac')">
+                            <div class="quality-info">
+                                <div class="quality-name">无损音质 (FLAC)</div>
+                                <div class="quality-desc">无损音质</div>
+                            </div>
+                            <div class="download-icon">↓</div>
+                        </div>
+                        <div class="quality-item" @click="selectQuality('320')">
+                            <div class="quality-info">
+                                <div class="quality-name">高音质320K</div>
+                                <div class="quality-desc">320kbps</div>
+                            </div>
+                            <div class="download-icon">↓</div>
+                        </div>
+                        <div class="quality-item" @click="selectQuality('128')">
+                            <div class="quality-info">
+                                <div class="quality-name">普通音质128K</div>
+                                <div class="quality-desc">128kbps</div>
+                            </div>
+                            <div class="download-icon">↓</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- 头部信息区域 -->
         <div class="header">
             <img class="cover-art" :class="isArtist ? 'artist-avatar' : ''"
@@ -143,7 +182,7 @@
                             <span>{{ $formatMilliseconds(item.timelen) }}</span>
                         </div>
                         <div class="action-col">
-                            <button class="action-btn add-to-playlist" @click.stop="toggleFavorite(item)" title="添加到歌单">
+                            <button class="action-btn add-to-playlist" @click.stop="handleFavoriteSong(item)" title="添加到歌单">
                                 <i class="fas fa-plus-circle"></i>
                             </button>
                             <button class="action-btn download" @click.stop="downloadSong(item)" title="下载">
@@ -397,6 +436,148 @@
 .pagination-info {
     margin: 0 10px;
 }
+/* 音质选择弹窗样式 */
+.quality-select-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.quality-select-modal {
+  background: #fff;
+  border-radius: 8px;
+  width: 300px;
+  max-width: 90vw;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #999;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.modal-content {
+  padding: 20px;
+}
+
+.song-info {
+  margin-bottom: 20px;
+}
+
+.song-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-artist {
+  font-size: 14px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quality-options {
+  border-top: 1px solid #eee;
+}
+
+.quality-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
+  cursor: pointer;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.quality-item:hover {
+  background-color: #fafafa;
+}
+
+.quality-info .quality-name {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.quality-info .quality-desc {
+  font-size: 12px;
+  color: #999;
+}
+
+.download-icon {
+  font-size: 18px;
+  color: #ff4081;
+}
+
+/* 自定义模态框样式 */
+.custom-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.custom-modal {
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 </style>
 
 <script setup>
@@ -445,6 +626,10 @@ const loading = ref(true);
 const isDropdownVisible = ref(false);
 const flyingNotes = ref([]);
 let noteId = 0;
+
+// 模态框相关状态
+const currentDownloadSong = ref(null);
+const showQualityModal = ref(false);
 
 // 切换标签状态
 const activeTab = ref('songs'); // songs 或 albums
@@ -740,8 +925,8 @@ const fetchArtistSongs = async () => {
                 album: track.album_name || '',
                 cover: track.trans_param.union_cover?.replace("{size}", 480).replace('http://', 'https://') || '',
                 timelen: track.timelength || 0,
-                isSQ: track.hash_flac !== '',
-                isHQ: track.hash_320 !== '',
+                isSQ: track.hash_flac && track.hash_flac !== '',
+                isHQ: track.hash_320 && track.hash_320 !== '',
                 privilege: track.privilege || 0,
                 originalData: track
             }));
@@ -955,6 +1140,536 @@ const toggleFavorite = async (id) => {
     } catch (error) {
         $message.error(isPlaylistFavorited.value ? t('qu-xiao-shou-cang-shi-bai') : t('shou-cang-shi-bai'));
     }
+};
+
+// 处理单首歌曲收藏
+const handleFavoriteSong = async (song) => {
+  try {
+    // 检查是否已登录
+    if (typeof MoeAuth !== 'undefined' && !MoeAuth.isAuthenticated) {
+      if (window.$modal) {
+        window.$modal.alert('请先登录');
+      } else {
+        alert('请先登录');
+      }
+      return;
+    }
+    
+    // 使用PlaylistSelectModal组件显示歌单选择界面
+    if (playlistSelect && typeof playlistSelect.fetchPlaylists === 'function') {
+      // 设置当前歌曲
+      currentSong.value = song;
+      // 调用组件方法显示歌单选择
+      playlistSelect.value.fetchPlaylists();
+    } else {
+      // 获取用户的歌单列表（仅显示用户创建的歌单，不包含创建新歌单选项）
+      const playlistResponse = await get('/user/playlist', {
+        pagesize: 100
+      });
+      
+      if (playlistResponse.status === 1 && playlistResponse.data && Array.isArray(playlistResponse.data.info)) {
+        // 只显示用户自己创建的歌单，并排除系统默认歌单
+        const playlists = playlistResponse.data.info.filter(
+          playlist => 
+            playlist.list_create_userid === MoeAuth.UserInfo.userid &&
+            playlist.name !== '默认收藏' &&
+            playlist.name !== '我喜欢' &&
+            playlist.name !== '本地' &&
+            playlist.name !== '我的云盘'
+        );
+        
+        // 构建歌单选择HTML（移除创建新歌单选项）
+        const playlistOptions = playlists.map(playlist => `
+          <div class="playlist-option" data-id="${playlist.listid || playlist.id}">
+            ${playlist.name}
+          </div>
+        `).join('');
+        
+        const modalContent = `
+          <div class="playlist-selector" style="background: white; border-radius: 8px; padding: 20px; width: 300px; max-height: 400px; overflow-y: auto;">
+            <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #333;">收藏到</h3>
+            <div class="playlists-container">
+              ${playlistOptions}
+            </div>
+            <div class="modal-footer" style="text-align: center;">
+              <button class="close-btn" style="background: #ff4081; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; width: 100%;">关闭</button>
+            </div>
+          </div>
+          <style>
+            .playlists-container {
+              margin-bottom: 15px;
+            }
+            .playlist-option {
+              padding: 10px 15px;
+              cursor: pointer;
+              border-radius: 4px;
+              transition: background-color 0.2s;
+            }
+            .playlist-option:hover {
+              background-color: #f5f5f5;
+            }
+          </style>
+        `;
+        
+        // 创建自定义弹窗
+        const modal = createCustomModal(modalContent);
+        
+        // 处理歌单选择
+        modal.querySelectorAll('.playlist-option').forEach(option => {
+          option.addEventListener('click', async () => {
+            const playlistId = option.getAttribute('data-id');
+            const playlistName = option.textContent.trim();
+            
+            // 调用API将歌曲添加到指定歌单
+            await addSongToPlaylist(song, playlistId);
+            
+            if (window.$message) {
+              window.$message.success(`已添加到歌单「${playlistName}」`);
+            }
+            
+            closeModal(modal);
+          });
+        });
+        
+        // 处理关闭按钮
+        modal.querySelector('.close-btn').addEventListener('click', () => {
+          closeModal(modal);
+        });
+      }
+    }
+    
+  } catch (error) {
+    console.error('收藏歌曲失败:', error);
+    if (window.$message) {
+      window.$message.error('服务器错误，请稍后再试');
+    }
+  }
+};
+
+// 创建新歌单
+const createNewPlaylist = async (song) => {
+  try {
+    const newPlaylistName = prompt('请输入歌单名称:');
+    
+    if (!newPlaylistName || newPlaylistName.trim() === '') {
+      return;
+    }
+    
+    // 调用创建歌单API
+    const createResponse = await get('/playlist/create', {
+      name: newPlaylistName.trim(),
+      description: '',
+      list_create_userid: MoeAuth.UserInfo.userid,
+      timestamp: Date.now()
+    });
+    
+    if (createResponse.status === 1 || createResponse.data?.status === 200) {
+      // 获取新创建的歌单ID
+      const newPlaylistId = createResponse.data?.playlistId || newPlaylistName.trim();
+      
+      // 将歌曲添加到新创建的歌单
+      await addSongToPlaylist(song, newPlaylistId);
+      
+      if (window.$message) {
+        window.$message.success(`已创建歌单并添加歌曲`);
+      }
+    } else {
+      throw new Error('创建歌单失败');
+    }
+  } catch (error) {
+    console.error('创建歌单失败:', error);
+    if (window.$message) {
+      window.$message.error('创建歌单失败，请稍后再试');
+    }
+  }
+};
+
+// 获取用户歌单列表（不包含创建新歌单选项）
+const fetchUserPlaylists = async () => {
+  try {
+    const response = await get('/user/playlist', {
+      page: 1,
+      pagesize: 100
+    });
+    
+    if (response.status === 1 && response.data && Array.isArray(response.data.info)) {
+      // 只返回用户自己创建的歌单，并排除系统默认歌单、收藏的歌单和本地歌单
+      return response.data.info.filter(
+        playlist => 
+          // 只显示用户自己创建的歌单
+          (playlist.list_create_userid === MoeAuth.UserInfo.userid || playlist.creator === MoeAuth.UserInfo.userid) &&
+          // 排除收藏的歌单
+          !playlist.is_collect && !playlist.collect && !playlist.is_collected &&
+          // 排除特定名称的系统歌单
+          !playlist.name?.includes('默认收藏') &&
+          !playlist.name?.includes('我喜欢') &&
+          !playlist.name?.includes('本地') &&
+          !playlist.name?.includes('我的收藏') &&
+          !playlist.name?.includes('我的云盘')
+      ).map(playlist => ({
+        id: playlist.listid || playlist.id, // 确保使用正确的ID字段
+        name: playlist.name
+      }));
+    }
+  } catch (error) {
+    console.error('获取用户歌单失败:', error);
+  }
+  
+  // 出错时返回空数组
+  return [];
+};
+
+// 将歌曲添加到歌单
+const addSongToPlaylist = async (song, playlistId) => {
+  try {
+    let song_data = '';
+    if(Array.isArray(song)){
+        song_data = song.map(s => `${encodeURIComponent(s.name?.replace(',', '') || '')}|${s.hash}`).join(',');
+    }else{
+        song_data = `${encodeURIComponent(song.name?.replace(',', '') || '')}|${song.hash}`;
+    }
+    const response = await get(`/playlist/tracks/add?listid=${playlistId}&data=${song_data}`);
+    
+    if (response.status !== 1 && response.data?.status !== 200) {
+      throw new Error('添加到歌单失败');
+    }
+  } catch (error) {
+    console.error('添加到歌单失败:', error);
+    throw error;
+  }
+};
+
+// 创建自定义模态框
+const createCustomModal = (content) => {
+  const overlay = document.createElement('div');
+  overlay.className = 'custom-modal-overlay';
+  
+  const modal = document.createElement('div');
+  modal.className = 'custom-modal';
+  modal.innerHTML = content;
+  
+  // 添加样式
+  const style = document.createElement('style');
+  style.textContent = `
+    .custom-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+    }
+    .custom-modal {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+    .playlist-selector {
+      background: #fff;
+      border-radius: 8px;
+      padding: 20px;
+      width: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .playlist-selector h3 {
+      margin: 0 0 15px 0;
+      font-size: 18px;
+      color: #333;
+      text-align: center;
+    }
+    .playlists-container {
+      margin-bottom: 15px;
+    }
+    .playlist-option {
+      padding: 10px 15px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+      margin-bottom: 5px;
+    }
+    .playlist-option:nth-child(odd) {
+      background-color: #f9f9f9;
+    }
+    .playlist-option:hover {
+      background-color: #ffebee;
+    }
+    .modal-footer {
+      text-align: center;
+    }
+    .close-btn {
+      background: #ff4081;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      width: 100%;
+      transition: background-color 0.2s;
+    }
+    .close-btn:hover {
+      background-color: #e91e63;
+    }
+  `;
+  
+  modal.appendChild(style);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  
+  return modal;
+};
+
+// 关闭模态框
+const closeModal = (modal) => {
+  const overlay = modal.parentNode;
+  if (overlay && overlay.classList.contains('custom-modal-overlay')) {
+    document.body.removeChild(overlay);
+  }
+};
+
+// 获取默认下载音质设置
+const getDefaultDownloadQuality = () => {
+  const settings = JSON.parse(localStorage.getItem('settings') || '{}');
+  return settings.downloadQuality?.toString() || '128'; // 默认128K
+};
+
+// 处理单首歌曲下载
+const downloadSong = async (song) => {
+  try {
+    // 设置当前下载歌曲
+    currentDownloadSong.value = song;
+    // 获取默认下载音质
+    const defaultQuality = getDefaultDownloadQuality();
+    // 直接使用默认音质下载，不显示弹窗
+    await selectQuality(defaultQuality);
+  } catch (error) {
+    console.error('准备下载歌曲失败:', error);
+    if (window.$message) {
+      window.$message.error('准备下载歌曲失败');
+    }
+  }
+};
+
+// 使用指定音质下载歌曲（保留用于其他调用场景）
+const downloadWithQuality = async (song, quality) => {
+  try {
+    currentDownloadSong.value = song;
+    await selectQuality(quality);
+  } catch (error) {
+    console.error('下载歌曲失败:', error);
+    if (window.$message) {
+      window.$message.error('下载歌曲失败');
+    }
+  }
+};
+
+// 关闭音质选择弹窗
+const closeQualityModal = () => {
+  showQualityModal.value = false;
+  currentDownloadSong.value = null;
+};
+
+// 选择音质并开始下载
+const selectQuality = async (quality) => {
+  try {
+    // 关闭弹窗
+    showQualityModal.value = false;
+    
+    const song = currentDownloadSong.value;
+    if (!song) return;
+    
+    console.log(`开始下载歌曲 (${quality}):`, song.name);
+    
+    // 根据选择的音质获取对应的歌曲hash
+    let hash;
+    switch (quality) {
+      case 'flac':
+      case '999':
+        hash = song.originalData?.hash_flac || song.hash || song.id;
+        break;
+      case '320':
+        hash = song.originalData?.hash_320 || song.hash || song.id;
+        break;
+      default:
+        hash = song.hash || song.id;
+        break;
+    }
+    
+    // 转换音质参数
+    let br;
+    switch(quality) {
+      case 'flac':
+      case '999':
+        br = 999000; // 无损音质
+        break;
+      case '320':
+        br = 320000;
+        break;
+      case '128':
+        br = 128000;
+        break;
+      default:
+        br = 320000; // 默认320K
+    }
+    
+    // 获取下载链接
+    const downloadParams = { 
+      hash: hash, 
+      quality: quality
+    };
+
+    // 未登录用户添加free_part参数
+    if (!MoeAuth.isAuthenticated) {
+      downloadParams.free_part = 1;
+    }
+
+    const response = await get('/song/url', downloadParams);
+    
+    console.log('下载API响应:', response); // 调试信息
+    
+    let downloadUrl = null;
+
+    // 检查API响应状态
+    if (response.status !== 1) {
+      throw new Error('获取下载链接失败');
+    }
+    
+    // 尝试不同的响应格式
+    const data = response?.data || {};
+    if (response.url) {
+      downloadUrl = Array.isArray(response.url) ? response.url[0] : response.url;
+    } else if (data.url) {
+      downloadUrl = Array.isArray(data.url) ? data.url[0] : data.url;
+    } else if (Array.isArray(data) && data[0]?.url) {
+      downloadUrl = data[0].url;
+    } else if (data.list && Array.isArray(data.list) && data.list[0]?.url) {
+      downloadUrl = data.list[0].url;
+    } else if (data.data && data.data.url) {
+      downloadUrl = data.data.url;
+    } else if (data.data && Array.isArray(data.data) && data.data[0]?.url) {
+      downloadUrl = data.data[0].url;
+    } else if (data.audio_data && data.audio_data.url) {
+      downloadUrl = data.audio_data.url;
+    } else if (data.cur_song_url) {
+      downloadUrl = data.cur_song_url;
+    } else if (data.play_url) {
+      downloadUrl = data.play_url;
+    }
+    
+    if (downloadUrl) {
+      // 设置文件名，包含音质信息
+      const isFlac = quality === 'flac' || quality === '999';
+      const format = isFlac ? 'flac' : 'mp3';
+      const qualityLabel = isFlac ? '无损' : quality === '320' ? '320K' : '128K';
+      let fileName = `${song.name} - ${song.author || song.artist} (${qualityLabel}).${format}`;
+      
+      // 处理文件名中的非法字符
+      fileName = fileName.replace(/[\\/:*?"<>|]/g, '_');
+      
+      // 检查是否跨域
+      const url = new URL(downloadUrl);
+      const isSameOrigin = url.origin === window.location.origin;
+      
+      if (isSameOrigin) {
+        // 同域下载，直接使用URL
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = fileName;
+        a.style.display = 'none';
+        a.style.position = 'absolute';
+        a.style.left = '-9999px';
+        document.body.appendChild(a);
+        
+        // 触发下载
+        try {
+          a.click();
+        } catch (e) {
+          // 备用方案
+          const mouseEvent = new MouseEvent('click', {
+            view: window,
+            bubbles: true,
+            cancelable: true
+          });
+          a.dispatchEvent(mouseEvent);
+        }
+        
+        // 清理
+        setTimeout(() => {
+          document.body.removeChild(a);
+        }, 100);
+        
+        if (window.$message) {
+          window.$message.success('开始下载');
+        }
+      } else {
+        // 跨域下载，使用fetch获取文件内容并创建Blob URL
+        fetch(downloadUrl)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('下载请求失败');
+            }
+            return response.blob();
+          })
+          .then(blob => {
+            // 创建Blob URL
+            const blobUrl = URL.createObjectURL(blob);
+            
+            // 创建下载链接
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = fileName;
+            a.style.display = 'none';
+            a.style.position = 'absolute';
+            a.style.left = '-9999px';
+            document.body.appendChild(a);
+            
+            // 触发下载
+            try {
+              a.click();
+            } catch (e) {
+              // 备用方案
+              const mouseEvent = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true
+              });
+              a.dispatchEvent(mouseEvent);
+            }
+            
+            // 清理
+            setTimeout(() => {
+              document.body.removeChild(a);
+              URL.revokeObjectURL(blobUrl);
+            }, 100);
+            
+            if (window.$message) {
+              window.$message.success('开始下载');
+            }
+          })
+          .catch(error => {
+            console.error('下载失败:', error);
+            if (window.$message) {
+              window.$message.error('下载失败，请稍后重试');
+            }
+          });
+      }
+    } else {
+      throw new Error('无法获取下载链接');
+    }
+  } catch (error) {
+    console.error('下载歌曲失败:', error);
+    if (window.$message) {
+      window.$message.error('下载失败，请稍后重试');
+    }
+  } finally {
+    // 清理状态
+    currentDownloadSong.value = null;
+  }
 };
 
 // 删除歌单

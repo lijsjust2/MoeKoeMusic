@@ -155,7 +155,9 @@ const activeTab = ref(0);
 
 // 设置配置
 const selectedSettings = ref({
-    apiServer: { displayText: 'http://frps.lijs.fun:6521', value: 'http://frps.lijs.fun:6521' }
+    apiServer: { displayText: 'http://frps.lijs.fun:6521', value: 'http://frps.lijs.fun:6521' },
+    downloadQuality: { displayText: '普通音质 (128K)', value: 128 },
+    quality: { displayText: '普通音质 (128K)', value: 128 }
 });
 
 // 设置分区配置
@@ -167,6 +169,16 @@ const settingSections = computed(() => [
                 key: 'apiServer',
                 label: 'API服务器地址',
                 icon: '🌐 '
+            },
+            {
+                key: 'quality',
+                label: '播放音质',
+                icon: '🎵 '
+            },
+            {
+                key: 'downloadQuality',
+                label: '默认下载音质',
+                icon: '⬇️ '
             }
         ]
     }
@@ -195,6 +207,7 @@ const getItemIcon = (key) => {
         'nativeTitleBar': 'fas fa-window-maximize',
         'font': 'fas fa-font',
         'quality': 'fas fa-headphones',
+        'downloadQuality': 'fas fa-download',
         'greetings': 'fas fa-comment',
         'lyricsBackground': 'fas fa-image',
         'lyricsFontSize': 'fas fa-text-height',
@@ -235,6 +248,22 @@ const selectionTypeMap = {
             { displayText: '🇰🇷 한국어', value: 'ko' }
         ]
     },
+    quality: {
+        title: '选择播放音质',
+        options: [
+            { displayText: '普通音质 (128K)', value: 128 },
+            { displayText: '高音质 (320K)', value: 320 },
+            { displayText: '无损音质 (FLAC)', value: 999 }
+        ]
+    },
+    downloadQuality: {
+        title: '选择默认下载音质',
+        options: [
+            { displayText: '普通音质 (128K)', value: 128 },
+            { displayText: '高音质 (320K)', value: 320 },
+            { displayText: '无损音质 (FLAC)', value: 999 }
+        ]
+    },
     themeColor: {
         title: t('xuan-ze-zhu-se-tiao'),
         options: [
@@ -259,15 +288,7 @@ const selectionTypeMap = {
             { displayText: t('guan-bi'), value: 'off' }
         ]
     },
-    quality: {
-        title: t('yin-zhi-xuan-ze'),
-        options: [
-            { displayText: t('pu-tong-yin-zhi'), value: 'normal' },
-            { displayText: t('gao-yin-zhi-320kbps'), value: 'high' },
-            { displayText: t('wu-sun-yin-zhi-1104kbps'), value: 'lossless' },
-            { displayText: t('hires-yin-zhi'), value: 'hires' }
-        ]
-    },
+
     lyricsBackground: {
         title: t('xian-shi-ge-ci-bei-jing'),
         options: [
@@ -419,7 +440,8 @@ const showRefreshHint = ref({
     touchBar: false,
     preventAppSuspension: false,
     networkMode: false,
-    apiServer: false
+    apiServer: false,
+    downloadQuality: false
 });
 
 const openSelection = (type, helpLink) => {
@@ -443,6 +465,8 @@ const openSelection = (type, helpLink) => {
     if (type === 'apiServer') {
         apiServerInput.value = selectedSettings.value.apiServer?.value || 'http://frps.lijs.fun:6521';
     }
+    
+    // 不需要特殊处理downloadQuality，因为它直接使用选项列表
 };
 
 const openHelpLink = () => {
@@ -486,6 +510,12 @@ const selectOption = (option) => {
                 displayText: qualityCompatibilityMode.value ? t('kai-qi') : t('guan-bi')
             };
         },
+        'downloadQuality': () => {
+            // 对于下载音质，不需要特殊处理，直接保存即可
+            if (!MoeAuth.isAuthenticated && option.value > 128) {
+                window.$modal.alert('高音质下载需要登录后才能使用');
+            }
+        },
         'highDpi': () => {
             selectedSettings.value.dpiScale = {
                 value: dpiScale.value.toString(),
@@ -509,7 +539,7 @@ const selectOption = (option) => {
     actions[selectionType.value]?.();
     saveSettings();
     if(!['apiMode','font','fontUrl','apiServer'].includes(selectionType.value)) closeSelection();
-    const refreshHintTypes = ['lyricsBackground', 'lyricsFontSize', 'gpuAcceleration', 'highDpi', 'apiMode', 'touchBar', 'preventAppSuspension', 'networkMode', 'font', 'apiServer'];
+    const refreshHintTypes = ['lyricsBackground', 'lyricsFontSize', 'gpuAcceleration', 'highDpi', 'apiMode', 'touchBar', 'preventAppSuspension', 'networkMode', 'font', 'apiServer', 'downloadQuality'];
     if (refreshHintTypes.includes(selectionType.value)) {
         showRefreshHint.value[selectionType.value] = true;
     }

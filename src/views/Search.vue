@@ -287,8 +287,52 @@ const handleClickOutside = () => {
   showPlaylistMenu.value = false;
 };
 
-// 打开音质选择模态框
-const downloadSong = (song) => {
+// 获取默认下载音质设置
+const getDefaultDownloadQuality = () => {
+  try {
+    const savedSettings = JSON.parse(localStorage.getItem('settings'));
+    return savedSettings?.downloadQuality?.toString() || '128';
+  } catch (error) {
+    console.error('获取默认下载音质设置失败:', error);
+    return '128';
+  }
+};
+
+// 使用默认音质直接下载歌曲
+const downloadSong = async (song) => {
+  try {
+    // 获取默认下载音质设置
+    const defaultQuality = getDefaultDownloadQuality();
+    
+    // 准备下载的歌曲数据
+    currentDownloadSong.value = {
+      name: song.SongName || song.name || song.FileName,
+      author: song.SingerName || song.author || song.singer,
+      hash: song.FileHash || song.hash,
+      isCloud: false,
+      isLocal: false
+    };
+    
+    // 直接获取音质信息并下载
+    // 这里简化处理，直接构建一个包含所需信息的对象
+    const qualityInfo = {
+      quality: defaultQuality,
+      label: defaultQuality === 'flac' ? '无损' : defaultQuality === '320' ? '320K' : '128K',
+      url: null // 稍后会在handleQualitySelected中获取
+    };
+    
+    // 直接调用下载处理函数
+    await handleQualitySelected(qualityInfo);
+  } catch (error) {
+    console.error('下载歌曲失败:', error);
+    if (window.$message) {
+      window.$message.error('下载失败');
+    }
+  }
+};
+
+// 用于指定音质下载的函数（保留原功能，供特殊场景使用）
+const downloadWithQuality = (song) => {
   // 准备下载的歌曲数据
   currentDownloadSong.value = {
     name: song.SongName || song.name || song.FileName,
@@ -304,13 +348,64 @@ const downloadSong = (song) => {
 
 // 处理音质选择并下载
 const handleQualitySelected = async (qualityInfo) => {
-  if (!qualityInfo || !qualityInfo.url) {
-    console.error('获取音乐URL失败');
-    window.$message.error('获取音乐URL失败');
-    return;
-  }
-  
   try {
+    // 如果没有提供URL，则根据音质参数获取下载链接
+    if (!qualityInfo.url) {
+      // 获取歌曲hash
+      const hash = currentDownloadSong.value.hash;
+      if (!hash) {
+        throw new Error('歌曲缺少hash信息');
+      }
+      
+      // 根据音质转换br参数
+      let br;
+      switch(qualityInfo.quality) {
+        case 'flac':
+        case '999':
+        case 999:
+          br = 999000; // 无损音质
+          break;
+        case '320':
+        case 320:
+          br = 320000;
+          break;
+        case '128':
+        case 128:
+          br = 128000;
+          break;
+        default:
+          br = 128000; // 默认128K
+      }
+      
+      // 获取下载链接
+      const response = await get('/song/url', { 
+        hash: hash,
+        quality: qualityInfo.quality
+      });
+      
+      let downloadUrl = null;
+      
+      // 尝试不同的响应格式
+      const data = response?.data || {};
+      if (data.url) {
+        downloadUrl = data.url;
+      } else if (Array.isArray(data) && data[0]?.url) {
+        downloadUrl = data[0].url;
+      } else if (data.list && Array.isArray(data.list) && data.list[0]?.url) {
+        downloadUrl = data.list[0].url;
+      } else if (data.data && data.data.url) {
+        downloadUrl = data.data.url;
+      } else if (data.data && Array.isArray(data.data) && data.data[0]?.url) {
+        downloadUrl = data.data[0].url;
+      }
+      
+      if (!downloadUrl) {
+        throw new Error('无法获取下载链接');
+      }
+      
+      qualityInfo.url = downloadUrl;
+    }
+    
     console.log(`开始下载歌曲 (${qualityInfo.label}):`, currentDownloadSong.value.name);
     
     // 使用fetch API获取文件blob，确保强制下载而不是播放
@@ -330,7 +425,11 @@ const handleQualitySelected = async (qualityInfo) => {
     link.href = blobUrl;
     
     // 设置文件名，包含音质信息，避免特殊字符
-    let fileName = `${currentDownloadSong.value.name} - ${currentDownloadSong.value.author} (${qualityInfo.label}).${qualityInfo.quality === 'flac' ? 'flac' : 'mp3'}`;
+    let fileExtension = 'mp3';
+    if (qualityInfo.quality === 'flac' || qualityInfo.quality === 999) {
+      fileExtension = 'flac';
+    }
+    let fileName = `${currentDownloadSong.value.name} - ${currentDownloadSong.value.author} (${qualityInfo.label}).${fileExtension}`;
     fileName = fileName.replace(/[<>"/\\|?*:]/g, '_'); // 替换Windows文件名中的非法字符
     
     link.download = fileName;
@@ -349,11 +448,15 @@ const handleQualitySelected = async (qualityInfo) => {
     }, 0);
     
     console.log('歌曲下载已触发:', fileName);
-    window.$message.success('下载已开始');
+    if (window.$message) {
+      window.$message.success('下载已开始');
+    }
     
   } catch (error) {
     console.error('下载歌曲失败:', error);
-    window.$message.error('下载失败');
+    if (window.$message) {
+      window.$message.error('下载失败');
+    }
   }
 };
 

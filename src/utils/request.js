@@ -81,7 +81,7 @@ httpClient.interceptors.response.use(
         // 确保$message可用
         const showError = (message) => {
             if (window.$message) {
-                $message.error(message);
+                window.$message.error(message);
             } else {
                 console.error(message);
                 alert(message);
