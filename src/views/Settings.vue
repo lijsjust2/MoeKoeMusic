@@ -56,16 +56,7 @@
                     </div>
                 </div>
                 
-                <div v-if="selectionType === 'apiServer'" class="api-settings-container">
-                    <div class="api-setting-item">
-                        <label>API服务器地址</label>
-                        <input type="text" v-model="apiServerInput" class="api-input" placeholder="请输入API服务器地址" />
-                    </div>
-                    <div class="modal-actions">
-                        <button class="secondary" @click="closeSelection">关闭</button>
-                        <button class="primary" @click="updateApiServerSetting">确定</button>
-                    </div>
-                </div>
+                
 
                 <div v-if="selectionType === 'quality'" class="compatibility-option">
                     <label>
@@ -227,7 +218,7 @@ const getItemIcon = (key) => {
         'startMinimized': 'fas fa-compress',
         'preventAppSuspension': 'fas fa-clock',
         'apiMode': 'fas fa-code',
-        'apiServer': 'fas fa-server',
+        
         'touchBar': 'fas fa-tablet-alt',
         'shortcuts': 'fas fa-keyboard',
         'pwa': 'fas fa-mobile-alt',
@@ -241,7 +232,7 @@ const currentHelpLink = ref('');
 const selectionType = ref('');
 const fontUrlInput = ref('');
 const fontFamilyInput = ref('');
-const apiServerInput = ref('');
+
 
 // 选项配置
 const selectionTypeMap = {
@@ -428,12 +419,7 @@ const selectionTypeMap = {
             { displayText: '开发网', value: 'devnet' }
         ]
     },
-    apiServer: {
-        title: 'API服务器配置',
-        options: [
-            { displayText: 'http://frps.lijs.fun:6521', value: 'http://frps.lijs.fun:6521' }
-        ]
-    }
+
 };
 
 const showRefreshHint = ref({
@@ -447,7 +433,7 @@ const showRefreshHint = ref({
     touchBar: false,
     preventAppSuspension: false,
     networkMode: false,
-    apiServer: false,
+
     downloadQuality: false
 });
 
@@ -469,9 +455,7 @@ const openSelection = (type, helpLink) => {
         fontFamilyInput.value = selectedSettings.value.font?.value || '';
     }
     
-    if (type === 'apiServer') {
-        apiServerInput.value = selectedSettings.value.apiServer?.value || 'http://frps.lijs.fun:6521';
-    }
+
     
     // 不需要特殊处理downloadQuality，因为它直接使用选项列表
 };
@@ -545,8 +529,8 @@ const selectOption = (option) => {
     };
     actions[selectionType.value]?.();
     saveSettings();
-    if(!['apiMode','font','fontUrl','apiServer'].includes(selectionType.value)) closeSelection();
-    const refreshHintTypes = ['lyricsBackground', 'lyricsFontSize', 'gpuAcceleration', 'highDpi', 'apiMode', 'touchBar', 'preventAppSuspension', 'networkMode', 'font', 'apiServer', 'downloadQuality'];
+    if(!['apiMode','font','fontUrl'].includes(selectionType.value)) closeSelection();
+    const refreshHintTypes = ['lyricsBackground', 'lyricsFontSize', 'gpuAcceleration', 'highDpi', 'apiMode', 'touchBar', 'preventAppSuspension', 'networkMode', 'font', 'downloadQuality'];
     if (refreshHintTypes.includes(selectionType.value)) {
         showRefreshHint.value[selectionType.value] = true;
     }
@@ -575,19 +559,7 @@ const handleFontFocusOut = (e) => {
 //     updateApiServerSetting();
 // };
 
-const updateApiServerSetting = () => {
-    const value = apiServerInput.value.trim() || 'http://frps.lijs.fun:6521';
-    // 确保URL格式正确，以http://或https://开头
-    if (!value.startsWith('http://') && !value.startsWith('https://')) {
-        window.$modal.alert('API服务器地址必须以http://或https://开头');
-        return;
-    }
-    const prevType = selectionType.value;
-    selectionType.value = 'apiServer';
-    selectOption({ displayText: value, value });
-    selectionType.value = prevType;
-    closeSelection();
-};
+
 
 const isElectron = () => {
     return typeof window !== 'undefined' && typeof window.electron !== 'undefined';
