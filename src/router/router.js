@@ -12,6 +12,7 @@ import Search from '@/views/Search.vue';
 import Lyrics from '@/views/Lyrics.vue';
 import Ranking from '@/views/Ranking.vue';
 import CloudDrive from '@/views/CloudDrive.vue';
+import BatchDownload from '@/views/BatchDownload.vue';
 // FullScreenQueue已整合到主界面中
 import { MoeAuthStore } from '@/stores/store';
 
@@ -34,7 +35,8 @@ const routes = [
             { path: '/search', name: 'Search', component: Search },
             { path: '/ranking', name: 'Ranking', component: Ranking },
             { path: '/CloudDrive', name: 'CloudDrive', component: CloudDrive },
-            { path: '/albumSongs', name: 'AlbumSongs', component: AlbumSongs }
+            { path: '/albumSongs', name: 'AlbumSongs', component: AlbumSongs },
+            { path: '/batchDownload', name: 'BatchDownload', component: BatchDownload }
         ],
     },
     { path: '/lyrics', name: 'Lyrics', component: Lyrics },
