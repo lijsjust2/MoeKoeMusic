@@ -179,6 +179,12 @@ const settingSections = computed(() => [
                 key: 'downloadQuality',
                 label: '默认下载音质',
                 icon: '⬇️ '
+            },
+            {
+                key: 'batchDownload',
+                label: '批量下载',
+                icon: '📥 ',
+                action: () => router.push('/batchDownload')
             }
         ]
     }
@@ -197,6 +203,11 @@ const getSectionIcon = (title) => {
     };
     return iconMap[title] || 'fas fa-cog';
 };
+
+import { useRouter } from 'vue-router';
+
+// 获取路由实例
+const router = useRouter();
 
 // 获取每个设置项的图标
 const getItemIcon = (key) => {
@@ -224,7 +235,8 @@ const getItemIcon = (key) => {
         'apiServer': 'fas fa-server',
         'touchBar': 'fas fa-tablet-alt',
         'shortcuts': 'fas fa-keyboard',
-        'pwa': 'fas fa-mobile-alt'
+        'pwa': 'fas fa-mobile-alt',
+        'batchDownload': 'fas fa-download'
     };
     return iconMap[key] || 'fas fa-sliders-h';
 };
