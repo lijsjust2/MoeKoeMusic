@@ -155,7 +155,6 @@ const activeTab = ref(0);
 
 // 设置配置
 const selectedSettings = ref({
-    apiServer: { displayText: 'http://frps.lijs.fun:6521', value: 'http://frps.lijs.fun:6521' },
     downloadQuality: { displayText: '普通音质 (128K)', value: 128 },
     quality: { displayText: '普通音质 (128K)', value: 128 }
 });
@@ -165,11 +164,7 @@ const settingSections = computed(() => [
     {
         title: '设置',
         items: [
-            {
-                key: 'apiServer',
-                label: 'API服务器地址',
-                icon: '🌐 '
-            },
+
             {
                 key: 'quality',
                 label: '播放音质',
