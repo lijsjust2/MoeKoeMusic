@@ -54,3 +54,8 @@ Thumbs.db
 
 # Configuration files
 vite.config.js*
+
+# Test files
+test-routes.cjs
+test.mp3
+album_songs_response.json

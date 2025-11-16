@@ -80,10 +80,42 @@ export default defineConfig({
       }
     })
   ],
-  base: '',
+  base: '/',
   server: {
     host: true,
     port: 8080, // 将开发服务器端口设置为8080，确保与其他服务兼容
+    historyApiFallback: true, // 支持Vue Router的history模式
+    proxy: {
+      '/api': {
+        target: 'http://localhost:6521',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/album/detail': {
+            target: 'http://localhost:6521',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/album/, '')
+        },
+        '/album/songs': {
+            target: 'http://localhost:6521',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/album/, '')
+        },
+        '/album/hot': {
+            target: 'http://localhost:6521',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/album/, '')
+        },
+        '/album/new': {
+            target: 'http://localhost:6521',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/album/, '')
+        },
+      '/song': {
+        target: 'http://localhost:6521',
+        changeOrigin: true
+      }
+    }
   },
   resolve: {
     alias: {

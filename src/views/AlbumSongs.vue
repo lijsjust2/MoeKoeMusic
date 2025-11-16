@@ -148,7 +148,7 @@ const { t } = useI18n();
 const MoeAuth = MoeAuthStore();
 
 const route = useRoute();
-const albumId = ref(route.query.id || '966846'); // 默认使用966846作为示例ID
+const albumId = ref(route.params.id || route.query.id || '966846'); // 默认使用966846作为示例ID
 const rawData = ref(null);
 const songs = ref([]);
 const totalSongs = ref(0);
@@ -218,11 +218,11 @@ const getAuthorName = (song) => {
   if (song.base && song.base.author_name) {
     return song.base.author_name;
   }
-  if (song.authors && song.authors.length > 0) {
+  if (Array.isArray(song.authors) && song.authors.length > 0) {
     return song.authors.map(author => author.author_name).join('、');
   }
   // 歌单格式
-  if (song.singerinfo && song.singerinfo.length > 0) {
+  if (Array.isArray(song.singerinfo) && song.singerinfo.length > 0) {
     return song.singerinfo.map(singer => singer.name).join('、');
   }
   // 通用格式
@@ -1275,11 +1275,11 @@ const fetchAlbumSongs = async () => {
 
 // 监听路由参数变化
 import { watch } from 'vue';
-watch(() => route.query.id, (newId) => {
-  if (newId) {
-    albumId.value = newId;
-    fetchAlbumSongs();
-  }
+watch(() => route.params.id || route.query.id, (newId) => {
+    if (newId) {
+        albumId.value = newId;
+        fetchAlbumSongs();
+    }
 });
 
 // 收藏/取消收藏专辑功能已在前面定义

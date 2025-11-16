@@ -98,6 +98,7 @@ const createRequest = (options) => {
       headers: Object.assign({}, options?.headers || {}, headers),
       withCredentials: true,
       responseType: options.responseType,
+      responseEncoding: 'utf8',
     };
 
     if (options.data) requestOptions.data = options.data;
@@ -116,7 +117,7 @@ const createRequest = (options) => {
     try {
       const response = await axios(requestOptions);
 
-      const body = response.data;
+      let body = response.data;
 
       answer.cookie = (response.headers['set-cookie'] || []).map((x) => parseCookieString(x));
 
@@ -124,8 +125,15 @@ const createRequest = (options) => {
         answer.headers['ssa-code'] = response.headers['ssa-code'];
       }
 
+      // Handle different response types
+      if (Buffer.isBuffer(body)) {
+        // Convert buffer to UTF-8 string
+        body = body.toString('utf-8');
+      }
+      
       try {
-        answer.body = JSON.parse(body.toString());
+        // Parse JSON if body is a string
+        answer.body = typeof body === 'string' ? JSON.parse(body) : body;
       } catch (error) {
         answer.body = body;
       }

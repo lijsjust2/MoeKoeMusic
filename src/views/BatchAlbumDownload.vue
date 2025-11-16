@@ -1,15 +1,15 @@
 <template>
     <div class="batch-download-page">
         <div class="container">
-            <h1 class="page-title">歌手歌曲批量下载</h1>
+            <h1 class="page-title">专辑歌曲批量下载</h1>
             
             <div class="input-section">
                 <div class="form-group">
-                    <label for="singerId">歌手ID（支持逗号分隔多个ID）</label>
+                    <label for="albumId">专辑ID（支持逗号分隔多个ID）</label>
                     <textarea 
-                        id="singerId" 
-                        v-model="singerId" 
-                        placeholder="例如：3520, 1234, 5678
+                        id="albumId" 
+                        v-model="albumId" 
+                        placeholder="例如：12345, 67890, 54321
 可以输入多行"
                         @input="resetState"
                         rows="5"
@@ -62,7 +62,7 @@
                 <button 
                     class="download-btn" 
                     @click="startDownload"
-                    :disabled="isDownloading || !singerId"
+                    :disabled="isDownloading || !albumId"
                 >
                     <i class="fas fa-download"></i> 
                     {{ isDownloading ? '下载中...' : '开始批量下载' }}
@@ -84,32 +84,32 @@
             <div class="status-section" v-if="downloadHistory.length > 0">
                 <h2 class="section-title">下载状态</h2>
                 <div class="download-list">
-                    <!-- 按歌手分组显示 -->
+                    <!-- 按专辑分组显示 -->
                     <div 
-                        v-for="(singerSongs, singer) in groupBySinger" 
-                        :key="singer"
-                        class="singer-group"
+                        v-for="(albumSongs, album) in groupByAlbum" 
+                        :key="album"
+                        class="album-group"
                     >
-                        <!-- 歌手折叠头 -->
+                        <!-- 专辑折叠头 -->
                         <div 
-                            class="singer-header"
-                            @click="toggleSingerCollapse(singer)"
+                            class="album-header"
+                            @click="toggleAlbumCollapse(album)"
                         >
-                            <div class="singer-info">
-                                <span class="singer-name">{{ singer }}</span>
-                                <span class="song-count">({{ singerSongs.length }})</span>
+                            <div class="album-info">
+                                <span class="album-name">{{ album }}</span>
+                                <span class="song-count">({{ albumSongs.length }})</span>
                             </div>
-                            <div class="collapse-arrow" :class="{ 'collapsed': collapsedSingers[singer] }">
+                            <div class="collapse-arrow" :class="{ 'collapsed': collapsedAlbums[album] }">
                                 <i class="fas fa-chevron-down"></i>
                             </div>
                         </div>
-                        <!-- 歌手的歌曲列表 -->
+                        <!-- 专辑的歌曲列表 -->
                         <div 
-                            class="singer-songs" 
-                            v-show="!collapsedSingers[singer]"
+                            class="album-songs" 
+                            v-show="!collapsedAlbums[album]"
                         >
                             <div 
-                                v-for="(item, index) in singerSongs" 
+                                v-for="(item, index) in albumSongs" 
                                 :key="index"
                                 class="download-item"
                                 :class="{
@@ -163,10 +163,10 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { get } from '../utils/request';
+import { get, post } from '../utils/request';
 
 // 输入参数
-const singerId = ref('');
+const albumId = ref('');
 const quality = ref('flac');
 const pushplusToken = ref(localStorage.getItem('pushplusToken') || '');
 const delayMin = ref(10);
@@ -185,28 +185,28 @@ const totalSongs = ref(0);
 const isStopRequested = ref(false);
 const countdown = ref(0);
 
-// 按歌手分组的下载历史
+// 按专辑分组的下载历史
 const groupedDownloads = ref({});
 
 // 折叠状态管理
-const collapsedSingers = ref({});
+const collapsedAlbums = ref({});
 
-// 按歌手分组下载历史
-const groupBySinger = computed(() => {
+// 按专辑分组下载历史
+const groupByAlbum = computed(() => {
   const groups = {};
   downloadHistory.value.forEach(item => {
-    const singer = item.song.author || '未知歌手';
-    if (!groups[singer]) {
-      groups[singer] = [];
+    const album = item.song.album || '未知专辑';
+    if (!groups[album]) {
+      groups[album] = [];
     }
-    groups[singer].push(item);
+    groups[album].push(item);
   });
   return groups;
 });
 
-// 切换歌手折叠状态
-const toggleSingerCollapse = (singer) => {
-  collapsedSingers.value[singer] = !collapsedSingers.value[singer];
+// 切换专辑折叠状态
+const toggleAlbumCollapse = (album) => {
+  collapsedAlbums.value[album] = !collapsedAlbums.value[album];
 };
 
 // 重置状态
@@ -225,55 +225,138 @@ const stopDownload = () => {
     countdown.value = 0;
 };
 
-// 获取歌手歌曲
-const getArtistSongs = async () => {
+// 获取专辑歌曲
+const getAlbumSongs = async (currentAlbumId = albumId.value) => {
     try {
-        // 将输入的歌手ID字符串分割为数组
-        const singerIds = singerId.value.split(',').map(id => id.trim()).filter(id => id);
+        console.log('getAlbumSongs - currentAlbumId:', currentAlbumId);
+        // 将输入的专辑ID字符串分割为数组
+        const albumIds = currentAlbumId.split(',').map(id => id.trim()).filter(id => id);
         
-        if (singerIds.length === 0) {
+        if (albumIds.length === 0) {
             return [];
         }
         
-        // 为每个歌手ID获取歌曲
+        // 为每个专辑ID获取歌曲
         const allSongs = [];
-        for (const id of singerIds) {
-            const response = await get('/artist/audios', {
-                id: id,
-                sort: 'hot',
-                page: 1,
-                pagesize: 9999 // 获取尽可能多的歌曲
-            });
+        for (const id of albumIds) {
+            // 使用POST请求以匹配后端API的期望
+        console.log('getAlbumSongs - 正在获取专辑ID:', id, '的歌曲');
+        const response = await post('/album/songs', {
+            id: id,
+            pagesize: 9999 // 获取尽可能多的歌曲
+        });
             
-            if (response.status === 1) {
-                const songs = response.data.map(track => {
-                    // 更灵活地提取歌曲名称和歌手名称
-                    const songName = track.audio_name || track.title || track.songname || track.name || '';
-                    const singerName = track.author_name || track.singer || track.artist || track.author || '';
-                    
-                    // 创建安全的文件名，去除特殊字符
-                    const safeSongName = songName.replace(/[\/\\:*?"<>|]/g, "") || '未知歌曲';
-                    const safeSingerName = singerName.replace(/[\/\\:*?"<>|]/g, "") || '未知歌手';
-                    
-                    return {
-                        hash: track.hash || track.audio_id || '',
-                        name: safeSongName,
-                        author: safeSingerName,
-                        album: track.album_name || track.album || '',
-                        cover: track.trans_param?.union_cover?.replace("{size}", 480).replace('http://', 'https://') || track.album_pic || '',
-                        timelen: track.timelength || track.duration || 0,
-                        isSQ: track.hash_flac && track.hash_flac !== '',
-                        isHQ: track.hash_320 && track.hash_320 !== '',
-                        originalData: track
-                    };
-                });
-                allSongs.push(...songs);
+            console.log('BatchAlbumDownload - Album Songs API Response:', response);
+            
+            // 统一处理不同响应结构
+            let songsList = [];
+            
+            // 检查常见的歌曲数组位置
+            if (response.data?.audios?.length) {
+                songsList = response.data.audios;
+            } else if (response.data?.songs?.length) {
+                songsList = response.data.songs;
+            } else if (response.data?.list?.length) {
+                songsList = response.data.list;
+            } else if (Array.isArray(response.data)) {
+                songsList = response.data;
+            } else if (response.status === 1 && response.data?.data?.audios?.length) {
+                // 兼容artist API的响应结构
+                songsList = response.data.data.audios;
+            } else if (response.status === 1 && response.data?.data?.songs?.length) {
+                songsList = response.data.data.songs;
+            } else if (Array.isArray(response)) {
+                songsList = response;
             }
+            
+            // 从专辑响应中提取专辑名称，支持不同的响应结构（优先顶层结构）
+            let albumName = '未知专辑';
+            // 先尝试从歌曲API响应中获取专辑名称
+            if (response.data) {
+                // 检查专辑响应的顶层结构，支持更多字段
+                albumName = response.data.album_name || response.data.albumName || response.data.name || response.data.album || response.data.album_title || response.data.title || albumName;
+                // 检查可能的嵌套结构（如data.data）
+                if (response.data.data) {
+                    // 检查嵌套结构是否为数组
+                    if (Array.isArray(response.data.data) && response.data.data.length > 0) {
+                        albumName = response.data.data[0].album_name || response.data.data[0].albumName || response.data.data[0].name || response.data.data[0].album || response.data.data[0].album_title || response.data.data[0].title || albumName;
+                    } else {
+                        albumName = response.data.data.album_name || response.data.data.albumName || response.data.data.name || response.data.data.album || response.data.data.album_title || response.data.data.title || albumName;
+                    }
+                }
+                // 检查data是否为数组结构
+                if (Array.isArray(response.data) && response.data.length > 0) {
+                    albumName = response.data[0].album_name || response.data[0].albumName || response.data[0].name || response.data[0].album || response.data[0].album_title || response.data[0].title || albumName;
+                }
+            }
+            // 如果从歌曲API响应中未获取到专辑名称，则调用专辑详情API获取
+            if (albumName === '未知专辑') {
+                try {
+                    // 先尝试使用GET方法调用专辑详情API
+                    const albumDetailResponse = await get('/album/detail', {
+                        id: id
+                    });
+                    
+                    console.log('BatchAlbumDownload - Album Detail API Response (GET):', albumDetailResponse);
+                    
+                    // 从专辑详情API响应中提取专辑名称
+                    if (albumDetailResponse.data) {
+                        // 检查专辑详情响应的顶层结构
+                        albumName = albumDetailResponse.data.album_name || albumDetailResponse.data.albumName || albumDetailResponse.data.name || albumDetailResponse.data.album || albumDetailResponse.data.album_title || albumDetailResponse.data.title || albumName;
+                        // 检查可能的嵌套结构（如data.data）
+                        if (albumDetailResponse.data.data) {
+                            // 检查嵌套结构是否为数组
+                            if (Array.isArray(albumDetailResponse.data.data) && albumDetailResponse.data.data.length > 0) {
+                                albumName = albumDetailResponse.data.data[0].album_name || albumDetailResponse.data.data[0].albumName || albumDetailResponse.data.data[0].name || albumDetailResponse.data.data[0].album || albumDetailResponse.data.data[0].album_title || albumDetailResponse.data.data[0].title || albumName;
+                            } else {
+                                // 否则视为单个对象结构
+                                albumName = albumDetailResponse.data.data.album_name || albumDetailResponse.data.data.albumName || albumDetailResponse.data.data.name || albumDetailResponse.data.data.album || albumDetailResponse.data.data.album_title || albumDetailResponse.data.data.title || albumName;
+                            }
+                        }
+                        // 检查data是否为数组结构（如专辑详情API响应）
+                        if (Array.isArray(albumDetailResponse.data) && albumDetailResponse.data.length > 0) {
+                            albumName = albumDetailResponse.data[0].album_name || albumDetailResponse.data[0].albumName || albumDetailResponse.data[0].name || albumDetailResponse.data[0].album || albumDetailResponse.data[0].album_title || albumDetailResponse.data[0].title || albumName;
+                        }
+                    }
+                } catch (error) {
+                    console.error('获取专辑详情失败:', error);
+                }
+            }
+            // 处理API返回直接是歌曲数组的情况，从第一个歌曲对象提取专辑名称
+            if (albumName === '未知专辑' && Array.isArray(songsList) && songsList.length > 0) {
+                const firstSong = songsList[0];
+                albumName = firstSong.album_name || firstSong.name || firstSong.album || firstSong.album_title || firstSong.title || albumName;
+            }
+            // 创建安全的专辑名称
+            const safeAlbumName = albumName.replace(/[\/\\:*?"<>|]/g, "") || '未知专辑';
+            
+            const songs = songsList.map(track => {
+                // 更灵活地提取歌曲名称，增加更多可能的字段支持，包括从audio_info和base中提取
+                const songName = track.audio_name || track.title || track.songname || track.name || track.track_name || track.song_name || track.trackTitle || track.songTitle || track.audioTitle || track.title_name || track.track_title || track.song_title || track.audio_info?.name || track.audio_info?.title || track.audio_info?.audio_name || track.audio_info?.songname || track.base?.audio_name || '';
+                const singerName = track.author_name || track.singer || track.artist || track.author || track.performer || track.audio_info?.author_name || track.audio_info?.singer || track.audio_info?.artist || track.base?.author_name || '';
+                
+                // 创建安全的文件名，去除特殊字符
+                const safeSongName = songName.replace(/[\/\\:*?"<>|]/g, "") || '未知歌曲';
+                const safeSingerName = singerName.replace(/[\/\\:*?"<>|]/g, "") || '未知歌手';
+                
+                return {
+                    hash: track.hash || track.audio_info?.hash || track.audio_id || track.id || '',
+                    name: safeSongName,
+                    author: safeSingerName,
+                    album: safeAlbumName, // 使用专辑级别的名称
+                    cover: track.trans_param?.union_cover?.replace("{size}", 480).replace('http://', 'https://') || track.album_pic || '',
+                    timelen: track.timelength || track.duration || track.audio_info?.duration || 0,
+                    isSQ: (track.hash_flac || track.audio_info?.hash_flac) && (track.hash_flac || track.audio_info?.hash_flac) !== '',
+                    isHQ: (track.hash_320 || track.audio_info?.hash_320) && (track.hash_320 || track.audio_info?.hash_320) !== '',
+                    originalData: track
+                };
+            });
+            allSongs.push(...songs);
         }
         
         return allSongs;
     } catch (error) {
-        console.error('获取歌手歌曲失败:', error);
+        console.error('获取专辑歌曲失败:', error);
         return [];
     }
 };
@@ -286,13 +369,13 @@ const downloadSingleSong = async (song, index) => {
         switch (quality.value) {
             case 'flac':
             case '999':
-                hash = song.originalData?.hash_flac || song.hash || song.id;
+                hash = song.originalData?.hash_flac || song.originalData?.audio_info?.hash_flac || song.hash || song.id;
                 break;
             case '320':
-                hash = song.originalData?.hash_320 || song.hash || song.id;
+                hash = song.originalData?.hash_320 || song.originalData?.audio_info?.hash_320 || song.hash || song.id;
                 break;
             default:
-                hash = song.hash || song.id;
+                hash = song.originalData?.hash || song.originalData?.audio_info?.hash || song.originalData?.hash_128 || song.originalData?.audio_info?.hash_128 || song.hash || song.id;
                 break;
         }
         
@@ -323,6 +406,16 @@ const downloadSingleSong = async (song, index) => {
             downloadUrl = data.list[0].url;
         } else if (response.data?.url) {
             downloadUrl = Array.isArray(response.data.url) ? response.data.url[0] : response.data.url;
+        } else if (data.data?.url) {
+            downloadUrl = Array.isArray(data.data.url) ? data.data.url[0] : data.data.url;
+        } else if (data.data?.list && Array.isArray(data.data.list) && data.data.list[0]?.url) {
+            downloadUrl = data.data.list[0].url;
+        } else if (data.data?.audio?.url) {
+            downloadUrl = Array.isArray(data.data.audio.url) ? data.data.audio.url[0] : data.data.audio.url;
+        } else if (response.data?.data?.url) {
+            downloadUrl = Array.isArray(response.data.data.url) ? response.data.data.url[0] : response.data.data.url;
+        } else if (response.data?.data?.list && Array.isArray(response.data.data.list) && response.data.data.list[0]?.url) {
+            downloadUrl = response.data.data.list[0].url;
         }
         
         if (!downloadUrl) {
@@ -410,8 +503,8 @@ const sendPushPlusNotification = async (successCount, failedCount) => {
         downloadHistory.value.forEach(item => {
             const song = item.song;
             const statusText = item.status === 'success' ? '下载成功' : '下载失败';
-            // 格式：歌手-歌曲名-音质  下载状态
-            const detailLine = `${song.author || '未知歌手'}-${song.name || '未知歌曲'}-${quality.value}  ${statusText}\n`;
+            // 格式：专辑-歌曲名-音质  下载状态
+            const detailLine = `${song.album || '未知专辑'}-${song.name || '未知歌曲'}-${quality.value}  ${statusText}\n`;
             content += detailLine;
         });
         
@@ -439,19 +532,26 @@ const sendPushPlusNotification = async (successCount, failedCount) => {
 
 // 开始批量下载
 const startDownload = async () => {
-    if (!singerId.value) {
-        alert('请输入歌手ID');
+    // 保存当前输入的专辑ID，确保每次下载都使用最新的输入
+    const currentAlbumId = albumId.value;
+    console.log('startDownload - currentAlbumId:', currentAlbumId);
+    if (!currentAlbumId) {
+        alert('请输入专辑ID');
         return;
     }
     
+    // 明确重置所有状态
+    resetState();
+    
+    // 开始下载前再次确认状态
     isDownloading.value = true;
     isStopRequested.value = false;
     
     try {
-        // 获取歌手歌曲
-        const songs = await getArtistSongs();
+        // 获取专辑歌曲，明确传递当前专辑ID
+        const songs = await getAlbumSongs(currentAlbumId);
         if (songs.length === 0) {
-            alert('未找到该歌手的歌曲');
+            alert('未找到该专辑的歌曲');
             isDownloading.value = false;
             return;
         }
@@ -629,16 +729,16 @@ input:focus, select:focus {
     border-bottom: none;
 }
 
-/* 歌手分组样式 */
-.singer-group {
+/* 专辑分组样式 */
+.album-group {
     border-bottom: 1px solid #e0e0e0;
 }
 
-.singer-group:last-child {
+.album-group:last-child {
     border-bottom: none;
 }
 
-.singer-header {
+.album-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -648,16 +748,16 @@ input:focus, select:focus {
     transition: background-color 0.3s ease;
 }
 
-.singer-header:hover {
+.album-header:hover {
     background-color: #f5f5f5;
 }
 
-.singer-info {
+.album-info {
     display: flex;
     align-items: center;
 }
 
-.singer-name {
+.album-name {
     font-weight: 600;
     color: #333;
     margin-right: 8px;
@@ -675,28 +775,11 @@ input:focus, select:focus {
     transition: transform 0.3s ease;
 }
 
-/* 单个歌曲进度条样式 */
-.single-progress-bar-container {
-    width: 100%;
-    height: 4px;
-    background-color: #e0e0e0;
-    border-radius: 2px;
-    margin-top: 4px;
-    overflow: hidden;
-}
-
-.single-progress-bar {
-    height: 100%;
-    background-color: #ff6b6b;
-    border-radius: 2px;
-    transition: width 0.3s ease;
-}
-
 .collapse-arrow.collapsed {
     transform: rotate(-180deg);
 }
 
-.singer-songs {
+.album-songs {
     margin-left: 12px;
 }
 

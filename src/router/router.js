@@ -13,6 +13,7 @@ import Lyrics from '@/views/Lyrics.vue';
 import Ranking from '@/views/Ranking.vue';
 import CloudDrive from '@/views/CloudDrive.vue';
 import BatchDownload from '@/views/BatchDownload.vue';
+import BatchAlbumDownload from '@/views/BatchAlbumDownload.vue';
 // FullScreenQueue已整合到主界面中
 import { MoeAuthStore } from '@/stores/store';
 
@@ -31,12 +32,14 @@ const routes = [
             { path: '/settings', name: 'Settings', component: Settings },
             { path: '/playlistDetail', name: 'PlaylistDetail', component: PlaylistDetail },
             { path: '/albumDetail', name: 'AlbumDetail', component: AlbumDetail },
-            { path: '/album', name: 'AlbumDetailAlt', component: AlbumDetail },
+            { path: '/album/:id', name: 'AlbumDetailAlt', component: AlbumDetail },
             { path: '/search', name: 'Search', component: Search },
             { path: '/ranking', name: 'Ranking', component: Ranking },
             { path: '/CloudDrive', name: 'CloudDrive', component: CloudDrive },
             { path: '/albumSongs', name: 'AlbumSongs', component: AlbumSongs },
-            { path: '/batchDownload', name: 'BatchDownload', component: BatchDownload }
+            { path: '/album/:id/songs', name: 'AlbumSongsAlt', component: AlbumSongs },
+            { path: '/batchDownload', name: 'BatchDownload', component: BatchDownload },
+            { path: '/batchAlbumDownload', name: 'BatchAlbumDownload', component: BatchAlbumDownload }
         ],
     },
     { path: '/lyrics', name: 'Lyrics', component: Lyrics },

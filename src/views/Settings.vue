@@ -168,9 +168,15 @@ const settingSections = computed(() => [
             },
             {
                 key: 'batchDownload',
-                label: '批量下载',
+                label: '歌手批量下载',
                 icon: '📥 ',
                 action: () => router.push('/batchDownload')
+            },
+            {
+                key: 'batchAlbumDownload',
+                label: '专辑批量下载',
+                icon: '📥 ',
+                action: () => router.push('/batchAlbumDownload')
             }
         ]
     }

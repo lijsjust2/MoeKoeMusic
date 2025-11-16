@@ -75,11 +75,13 @@
 
 <script setup>
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
+import { getCover } from '../utils/utils';
 import { useRoute, useRouter } from 'vue-router';
 import { get } from '../utils/request';
 import { useMusicQueueStore } from '../stores/musicQueue';
 import useSongQueue from '../components/player/SongQueue';
 import { useI18n } from 'vue-i18n';
+
 
 // 组件属性和状态
 // 移除props依赖，直接使用musicQueueStore
@@ -166,7 +168,7 @@ const getSongHashEnhanced = (song) => {
 };
 
 // 监听路由参数变化
-watch(() => route.query.id, (newId) => {
+watch(() => route.params.id || route.query.id, (newId) => {
   if (newId) {
     fetchAlbumDetail();
   }
@@ -434,7 +436,7 @@ const createFlyingNote = (event) => {
 // 获取专辑详情
 const fetchAlbumDetail = async () => {
     loading.value = true;
-    const albumId = route.query.id;
+    const albumId = route.params.id || route.query.id;
     
     // 如果没有专辑ID，显示错误信息并返回
     if (!albumId) {

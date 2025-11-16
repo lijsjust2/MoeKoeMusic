@@ -56,7 +56,7 @@ async function getModulesDefinitions(modulesPath, specificRoute, doRequire = tru
  * @param {ModuleDefinition[]} moduleDefs
  * @return {Promise<import('express').Express>}
  */
-async function consturctServer(moduleDefs) {
+async function constructServer(moduleDefs) {
   const app = express();
   const { CORS_ALLOW_ORIGIN } = process.env;
   app.set('trust proxy', true);
@@ -119,8 +119,8 @@ async function consturctServer(moduleDefs) {
 
   // app.use('/docs', express.static(path.join(__dirname, 'docs')));
 
-  // Cache
-  app.use(cache('2 minutes', (_, res) => res.statusCode === 200));
+  // Cache - 只缓存GET请求，不缓存POST请求以确保实时性
+app.use(cache('2 minutes', (req, res) => req.method === 'GET' && res.statusCode === 200));
 
   const moduleDefinitions = moduleDefs || (await getModulesDefinitions(path.join(__dirname, 'module'), {}));
 
@@ -201,7 +201,7 @@ async function startService() {
   const port = Number(process.env.PORT || '6521');
   const host = process.env.HOST || '';
 
-  const app = await consturctServer();
+  const app = await constructServer();
 
   app.get('/', (req, res) => {
     res.send({
