@@ -99,7 +99,6 @@
                     </label>
                 </div>
                 
-
                 <button 
                     class="download-btn" 
                     @click="startDownload"
@@ -212,13 +211,10 @@ const quality = ref('flac');
 const pushplusToken = ref(localStorage.getItem('pushplusToken') || '');
 const delayMin = ref(10);
 const delayMax = ref(15);
-<<<<<<< HEAD
 const excludeNoAlbumSongs = ref(false);
 const excludeConcertAlbums = ref(false);
 const excludeLiveAlbums = ref(false);
 const excludeShortSongs = ref(false);
-=======
->>>>>>> 69eb4b76bf486c11d3e1a6a6d335c92ae262cbe8
 
 // 监听pushplusToken变化并保存到localStorage
 watch(pushplusToken, (newValue) => {
@@ -497,7 +493,6 @@ const startDownload = async () => {
     
     try {
         // 获取歌手歌曲
-<<<<<<< HEAD
         let songs = await getArtistSongs();
         
         // 如果勾选了排除没有专辑的歌曲，则进行过滤
@@ -528,7 +523,7 @@ const startDownload = async () => {
         if (excludeShortSongs.value) {
             // 假设歌曲时长单位为秒，过滤掉小于60秒的歌曲
             songs = songs.filter(song => {
-                const duration = parseInt(song.duration || 0);
+                const duration = parseInt(song.timelen || 0);
                 return duration >= 60;
             });
         }
@@ -580,11 +575,6 @@ const startDownload = async () => {
             }
             
             alert(message);
-=======
-        const songs = await getArtistSongs();
-        if (songs.length === 0) {
-            alert('未找到该歌手的歌曲');
->>>>>>> 69eb4b76bf486c11d3e1a6a6d335c92ae262cbe8
             isDownloading.value = false;
             return;
         }
@@ -733,7 +723,6 @@ input:focus, select:focus {
     cursor: not-allowed;
 }
 
-<<<<<<< HEAD
 .checkbox-label {
     display: flex;
     align-items: center;
@@ -741,8 +730,6 @@ input:focus, select:focus {
     cursor: pointer;
 }
 
-=======
->>>>>>> 69eb4b76bf486c11d3e1a6a6d335c92ae262cbe8
 .status-section {
     margin-bottom: 30px;
 }
