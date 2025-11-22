@@ -603,9 +603,9 @@ const startDownload = async () => {
         
         // 检查是否被停止
         if (isStopRequested.value) {
-            alert('批量下载已停止');
+            console.log('批量下载已停止');
         } else {
-            alert('批量下载完成');
+            console.log('批量下载完成');
         }
         
         // 下载完成后发送PushPlus通知

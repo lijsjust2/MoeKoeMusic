@@ -228,6 +228,17 @@
             </div>
             
             <!-- 专辑分页 - 已隐藏，显示全部专辑 -->
+            
+            <!-- 专辑ID显示区域 -->
+            <div class="album-ids-display" v-if="albums.length > 0">
+                <div class="album-ids-label">专辑ID列表：</div>
+                <div class="album-ids-content">
+                    <div class="album-ids-text">{{ albums.map(album => album.album_id).join(',') }}</div>
+                    <button class="copy-ids-btn" @click="copyAlbumIds" title="复制专辑ID列表">
+                        <i class="fas fa-copy"></i> 复制
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- 分页组件 - 移动到歌曲列表容器外部，位于歌曲列表下方 -->
@@ -401,6 +412,35 @@
     padding: 2px 8px;
     background-color: #f5f5f5;
     border-radius: 12px;
+}
+
+/* 专辑ID显示区域样式 */
+.album-ids-display {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.album-ids-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.album-ids-text {
+    font-size: 13px;
+    color: #666;
+    font-family: 'Courier New', monospace;
+    word-break: break-all;
+    white-space: pre-wrap;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    cursor: text;
 }
 
 /* 专辑列样式 */
@@ -578,11 +618,39 @@
   }
 }
 
+/* 复制按钮样式 */
+.album-ids-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.copy-ids-btn {
+    padding: 6px 12px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: background-color 0.2s;
+}
+
+.copy-ids-btn:hover {
+    background-color: #45a049;
+}
+
+.copy-ids-btn:active {
+    transform: scale(0.98);
+}
 </style>
 
 <script setup>
 import { ref, onMounted, watch, onBeforeUnmount, computed } from 'vue';
-// 移除虚拟滚动组件导入
 import ContextMenu from '../components/ContextMenu.vue';
 import PlaylistSelectModal from '../components/PlaylistSelectModal.vue';
 import { get } from '../utils/request';
@@ -590,6 +658,36 @@ import { useRoute, useRouter } from 'vue-router';
 import { MoeAuthStore } from '../stores/store';
 import { useI18n } from 'vue-i18n';
 import { share } from '@/utils/utils';
+
+// 添加复制专辑ID的方法
+const copyAlbumIds = () => {
+    try {
+        const albumIds = albums.value.map(album => album.album_id).join(',');
+        navigator.clipboard.writeText(albumIds).then(() => {
+            // 显示复制成功提示
+            if (window.$message) {
+                window.$message.success('专辑ID已复制到剪贴板');
+            } else {
+                console.log('专辑ID已复制到剪贴板');
+            }
+        }).catch(err => {
+            console.error('复制失败:', err);
+            // 降级方案：创建临时文本域
+            const textArea = document.createElement('textarea');
+            textArea.value = albumIds;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            if (window.$message) {
+                window.$message.success('专辑ID已复制到剪贴板');
+            }
+        });
+    } catch (error) {
+        console.error('复制专辑ID时出错:', error);
+    }
+};
 
 const playlistSelect = ref(null);
 const { t } = useI18n();

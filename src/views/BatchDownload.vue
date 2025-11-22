@@ -605,6 +605,10 @@ const startDownload = async () => {
             
             // 更新下载结果
             downloadHistory.value[i].status = success ? 'success' : 'error';
+            // 确保每个成功下载的歌曲进度都显示为100%
+            if (success) {
+                downloadHistory.value[i].progress = 100;
+            }
             
             // 下载间等待用户设置的时间间隔
             if (i < songs.length - 1 && !isStopRequested.value) {
@@ -624,14 +628,20 @@ const startDownload = async () => {
             }
         }
         
-        // 检查是否被停止
-        if (isStopRequested.value) {
-            alert('批量下载已停止');
-        } else {
-            alert('批量下载完成');
+        // 确保最后一个下载项的进度显示为100%
+        if (downloadHistory.value.length > 0) {
+            const lastItem = downloadHistory.value[downloadHistory.value.length - 1];
+            if (lastItem.status === 'success') {
+                lastItem.progress = 100;
+            }
         }
         
-        // 下载完成后发送PushPlus通知
+        // 检查是否被停止
+        if (isStopRequested.value) {
+            console.log('批量下载已停止');
+        }
+        
+        // 下载完成后自动发送PushPlus通知，无需用户确认
         if (pushplusToken.value.trim()) {
             const successCount = downloadHistory.value.filter(item => item.status === 'success').length;
             const failedCount = downloadHistory.value.filter(item => item.status === 'error').length;
@@ -639,6 +649,8 @@ const startDownload = async () => {
         }
         
         isDownloading.value = false;
+        
+        // 下载完成后不显示任何弹窗，静默完成
         
     } catch (error) {
         console.error('批量下载失败:', error);
